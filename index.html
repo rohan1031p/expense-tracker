@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Expense Tracker</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main>
+    <h1>Expense Tracker</h1>
+
+    <!-- R4, R6, R7: Summary and budget -->
+    <section class="card">
+      <h2>Summary</h2>
+      <div class="summary">
+        <div>
+          <span class="label">Total spent</span>
+          <span id="total" class="value">$0.00</span>
+        </div>
+        <div>
+          <span class="label">Spent this month</span>
+          <span id="month-total" class="value">$0.00</span>
+        </div>
+        <div>
+          <span class="label">Budget remaining</span>
+          <span id="remaining" class="value">No budget set</span>
+        </div>
+      </div>
+
+      <form id="budget-form" class="row">
+        <label for="budget">Monthly budget</label>
+        <input id="budget" type="number" min="0" step="0.01" placeholder="e.g. 500">
+        <button type="submit">Set budget</button>
+      </form>
+      <p id="budget-error" class="error" role="alert"></p>
+    </section>
+
+    <!-- R1: Add an expense -->
+    <section class="card">
+      <h2>Add an expense</h2>
+      <form id="expense-form" class="grid">
+        <label>Name
+          <input id="name" type="text" required>
+        </label>
+        <label>Amount
+          <input id="amount" type="number" min="0.01" step="0.01" required>
+        </label>
+        <label>Category
+          <select id="category" required></select>
+        </label>
+        <label>Date
+          <input id="date" type="date" required>
+        </label>
+        <button type="submit">Add expense</button>
+      </form>
+      <p id="expense-error" class="error" role="alert"></p>
+    </section>
+
+    <!-- R5: Spending by category -->
+    <section class="card">
+      <h2>Spending by category</h2>
+      <ul id="category-list" class="plain-list"></ul>
+    </section>
+
+    <!-- R2, R3: Expense list -->
+    <section class="card">
+      <h2>Expenses</h2>
+      <p id="empty-message">No expenses yet.</p>
+      <table id="expense-table">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Name</th>
+            <th>Category</th>
+            <th class="number">Amount</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="expense-list"></tbody>
+      </table>
+    </section>
+  </main>
+
+  <script src="expenses.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
