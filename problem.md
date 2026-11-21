@@ -21,3 +21,10 @@ Many people have trouble keeping track of how much money they spend each month. 
 - R11: The updated expense is saved and shown in the expense list.
 - R12: The total spent, spending by category, and budget remaining update correctly after an edit.
 - R13: If the edited values are invalid (empty name, amount 0 or less), the change is not saved and an error is shown.
+
+
+## Round 3 requirements
+
+- R14: The user can filter expenses by category.
+- R15: The user can filter expenses by month.
+- R16: The user can clear the filters and see all expenses again.
