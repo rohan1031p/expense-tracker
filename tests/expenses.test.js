@@ -211,3 +211,103 @@ test("R8: a deleted expense stays deleted after saving and loading", () => {
   app.saveExpenses(storage, expenses);
   assert.deepEqual(app.loadExpenses(storage).map((e) => e.id), ["2"]);
 });
+
+// ---------- R9-R13: Edit an expense ----------
+
+function sampleList() {
+  return [
+    sampleExpense("a", 10, "Food", "2026-11-05"),
+    sampleExpense("b", 20, "Transport", "2026-11-10"),
+    sampleExpense("c", 30, "Shopping", "2026-10-15"),
+  ];
+}
+
+test("R9: updateExpense changes only the expense with the matching id", () => {
+  const list = sampleList();
+  const updated = app.updateExpense(list, "b", "Train", "25", "Transport", "2026-11-10");
+  assert.equal(updated.length, 3);
+  assert.deepEqual(updated[0], list[0]);
+  assert.deepEqual(updated[2], list[2]);
+  assert.equal(updated[1].name, "Train");
+});
+
+test("R9: updateExpense does not change the original list", () => {
+  const list = sampleList();
+  app.updateExpense(list, "a", "Changed", 99, "Other", "2026-01-01");
+  assert.deepEqual(list, sampleList());
+});
+
+test("R9: updating an id that does not exist leaves the list the same", () => {
+  const list = sampleList();
+  assert.deepEqual(app.updateExpense(list, "zzz", "X", 1, "Food", "2026-11-01"), list);
+});
+
+test("R10: updateExpense changes name, amount, category, and date and keeps the id", () => {
+  const updated = app.updateExpense(sampleList(), "a", "  Dinner out  ", "42.5", "Entertainment", "2026-09-30");
+  assert.deepEqual(updated[0], {
+    id: "a",
+    name: "Dinner out",
+    amount: 42.5,
+    category: "Entertainment",
+    date: "2026-09-30",
+  });
+});
+
+test("R10: an edited amount is rounded to cents", () => {
+  const updated = app.updateExpense(sampleList(), "a", "Lunch", "3.456", "Food", "2026-11-05");
+  assert.equal(updated[0].amount, 3.46);
+});
+
+test("R11: an edited expense stays changed after saving and loading", () => {
+  const storage = createFakeStorage();
+  const updated = app.updateExpense(sampleList(), "c", "Coat", 80, "Shopping", "2026-11-01");
+  app.saveExpenses(storage, updated);
+  const loaded = app.loadExpenses(storage);
+  assert.equal(loaded.length, 3);
+  assert.deepEqual(loaded.find((e) => e.id === "c"), {
+    id: "c", name: "Coat", amount: 80, category: "Shopping", date: "2026-11-01",
+  });
+});
+
+test("R11: an edited expense moves to its new place in the newest-first list", () => {
+  const updated = app.updateExpense(sampleList(), "c", "Item c", 30, "Shopping", "2026-11-20");
+  assert.deepEqual(app.sortByDateNewestFirst(updated).map((e) => e.id), ["c", "b", "a"]);
+});
+
+test("R12: total, category totals, and remaining budget use the edited values", () => {
+  // Before: a=10 Food (Nov), b=20 Transport (Nov), c=30 Shopping (Oct).
+  // Edit a: 10 Food -> 15 Transport, and c: Oct -> Nov.
+  let list = app.updateExpense(sampleList(), "a", "Taxi", 15, "Transport", "2026-11-05");
+  list = app.updateExpense(list, "c", "Item c", 30, "Shopping", "2026-11-12");
+
+  assert.equal(app.getTotal(list), 65);
+  assert.deepEqual(app.getTotalsByCategory(list), { Transport: 35, Shopping: 30 });
+  assert.equal(app.getMonthTotal(list, "2026-11"), 65);
+  assert.equal(app.getRemainingBudget(100, list, "2026-11"), 35);
+});
+
+test("R12: moving an expense out of the month gives that money back to the budget", () => {
+  const list = app.updateExpense(sampleList(), "b", "Item b", 20, "Transport", "2026-10-01");
+  assert.equal(app.getRemainingBudget(100, list, "2026-11"), 90);
+  assert.equal(app.getTotal(list), 60);
+});
+
+test("R13: an empty name is rejected and the list is not changed", () => {
+  const list = sampleList();
+  assert.throws(() => app.updateExpense(list, "a", "   ", 10, "Food", "2026-11-05"), /name/);
+  assert.deepEqual(list, sampleList());
+});
+
+test("R13: an amount of 0 or less is rejected", () => {
+  const list = sampleList();
+  assert.throws(() => app.updateExpense(list, "a", "Lunch", 0, "Food", "2026-11-05"), /greater than zero/);
+  assert.throws(() => app.updateExpense(list, "a", "Lunch", -3, "Food", "2026-11-05"), /greater than zero/);
+  assert.throws(() => app.updateExpense(list, "a", "Lunch", "", "Food", "2026-11-05"), /greater than zero/);
+  assert.throws(() => app.updateExpense(list, "a", "Lunch", "abc", "Food", "2026-11-05"), /greater than zero/);
+  assert.deepEqual(list, sampleList());
+});
+
+test("R13: an unknown category or empty date is rejected, as for new expenses", () => {
+  assert.throws(() => app.updateExpense(sampleList(), "a", "Lunch", 5, "Nope", "2026-11-05"), /category/);
+  assert.throws(() => app.updateExpense(sampleList(), "a", "Lunch", 5, "Food", ""), /date/);
+});
