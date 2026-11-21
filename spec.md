@@ -11,6 +11,7 @@ The Expense Tracker is a web app that helps users keep track of their expenses a
 - JavaScript for the app logic.
 - Browser Local Storage to save expenses.
 - Node.js built-in test runner for automated tests.
+- playwright-core (development only) so tests can drive the page in an installed Chrome or Edge.
 
 ## Requirements
 
@@ -54,11 +55,14 @@ Automated tests should run with:
 
 Tests should check the expense logic, including adding, deleting, totals, category spending, and budget calculations.
 
+Browser tests also open the real page and check every requirement through the forms and buttons, including that data is still there after a reload (R8) and that the page does not scroll sideways on a phone-sized screen.
+
 ## Implementation
 
 - `expenses.js`: expense logic and Local Storage saving, with no page code, so it can be tested in Node.
 - `app.js`: connects the page to the logic.
 - `server.js`: local server for `npm start`, using only built-in Node modules.
-- `tests/expenses.test.js`: automated tests; each test names the requirement it checks.
+- `tests/expenses.test.js`: logic tests; each test names the requirement it checks.
+- `tests/browser.test.js`: browser tests of the real page; each test names the requirement it checks.
 
 See `docs/decisions/` for the reasons behind these choices.
