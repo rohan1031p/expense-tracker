@@ -1,0 +1,10 @@
+{
+  "name": "expense-tracker",
+  "version": "1.0.0",
+  "description": "A simple local expense tracker with a monthly budget.",
+  "private": true,
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test tests/"
+  }
+}
