@@ -16,7 +16,7 @@ const FILES = {
   "/app.js": { file: "app.js", type: "text/javascript" },
 };
 
-const server = http.createServer((request, response) => {
+function handleRequest(request, response) {
   const urlPath = request.url.split("?")[0];
   const entry = FILES[urlPath];
 
@@ -35,8 +35,22 @@ const server = http.createServer((request, response) => {
     response.writeHead(200, { "Content-Type": entry.type + "; charset=utf-8" });
     response.end(content);
   });
-});
+}
 
-server.listen(PORT, "127.0.0.1", () => {
-  console.log("Expense Tracker running at http://localhost:" + PORT);
-});
+// Start the server. Port 0 picks any free port (used by the browser tests).
+// Calls onReady(server) once it is listening.
+function startServer(port, onReady) {
+  const server = http.createServer(handleRequest);
+  server.listen(port, "127.0.0.1", () => onReady(server));
+  return server;
+}
+
+// Only start automatically when run with `node server.js` (npm start),
+// not when the tests load this file.
+if (require.main === module) {
+  startServer(PORT, () => {
+    console.log("Expense Tracker running at http://localhost:" + PORT);
+  });
+}
+
+module.exports = { startServer };
