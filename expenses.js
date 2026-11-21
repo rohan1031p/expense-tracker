@@ -21,8 +21,10 @@ function roundMoney(value) {
   return Math.round(value * 100) / 100;
 }
 
-// R1: Build a new expense. Throws an Error with a helpful message if any input is invalid.
-function createExpense(name, amount, category, date) {
+// R1, R13: Check the values for an expense and return them cleaned up.
+// Throws an Error with a helpful message if any value is invalid.
+// Used both when adding (R1) and when editing (R13), so the rules are the same.
+function checkExpenseValues(name, amount, category, date) {
   const cleanName = String(name || "").trim();
   if (cleanName === "") {
     throw new Error("Please enter a name.");
@@ -42,12 +44,42 @@ function createExpense(name, amount, category, date) {
   }
 
   return {
-    id: Date.now().toString() + "-" + Math.random().toString(36).slice(2, 8),
     name: cleanName,
     amount: roundMoney(numberAmount),
     category: category,
     date: date,
   };
+}
+
+// R1: Build a new expense. Throws an Error if any input is invalid.
+function createExpense(name, amount, category, date) {
+  const values = checkExpenseValues(name, amount, category, date);
+  return {
+    id: Date.now().toString() + "-" + Math.random().toString(36).slice(2, 8),
+    name: values.name,
+    amount: values.amount,
+    category: values.category,
+    date: values.date,
+  };
+}
+
+// R9-R11, R13: Return a new list where the expense with this id has the new values.
+// The id stays the same. Throws an Error (and changes nothing) if any value is invalid.
+// If no expense has this id, the list is returned unchanged.
+function updateExpense(expenses, id, name, amount, category, date) {
+  const values = checkExpenseValues(name, amount, category, date);
+  return expenses.map((expense) => {
+    if (expense.id !== id) {
+      return expense;
+    }
+    return {
+      id: expense.id,
+      name: values.name,
+      amount: values.amount,
+      category: values.category,
+      date: values.date,
+    };
+  });
 }
 
 // R1: Return a new list with the expense added.
@@ -151,6 +183,7 @@ if (typeof module !== "undefined") {
     CATEGORIES,
     createExpense,
     addExpense,
+    updateExpense,
     deleteExpense,
     sortByDateNewestFirst,
     getTotal,
