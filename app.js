@@ -4,6 +4,9 @@
 let expenses = loadExpenses(localStorage);
 let budget = loadBudget(localStorage);
 
+// R9: The id of the expense being edited, or null when the form adds new expenses.
+let editingId = null;
+
 // Show money like $12.50 (or -$20.00).
 function formatMoney(value) {
   const sign = value < 0 ? "-" : "";
@@ -29,7 +32,34 @@ function setupCategories() {
   }
 }
 
-// R2, R3: Draw the list of expenses with a Delete button on each row.
+// R9: Put the form into edit mode, filled with this expense's values.
+function startEditing(expense) {
+  editingId = expense.id;
+  document.getElementById("name").value = expense.name;
+  document.getElementById("amount").value = expense.amount;
+  document.getElementById("category").value = expense.category;
+  document.getElementById("date").value = expense.date;
+  document.getElementById("form-title").textContent = "Edit expense";
+  document.querySelector("#expense-form button[type=submit]").textContent = "Save changes";
+  document.getElementById("cancel-edit").hidden = false;
+  document.getElementById("expense-error").textContent = "";
+  document.getElementById("expense-form-card").scrollIntoView();
+  document.getElementById("name").focus();
+}
+
+// R9: Go back to adding new expenses, with an empty form.
+function stopEditing() {
+  editingId = null;
+  document.getElementById("name").value = "";
+  document.getElementById("amount").value = "";
+  document.getElementById("date").value = todayString();
+  document.getElementById("form-title").textContent = "Add an expense";
+  document.querySelector("#expense-form button[type=submit]").textContent = "Add expense";
+  document.getElementById("cancel-edit").hidden = true;
+  document.getElementById("expense-error").textContent = "";
+}
+
+// R2, R3, R9: Draw the list of expenses with Edit and Delete buttons on each row.
 function renderExpenseList() {
   const list = document.getElementById("expense-list");
   list.innerHTML = "";
@@ -53,10 +83,21 @@ function renderExpenseList() {
 
     const actionCell = document.createElement("td");
     actionCell.className = "actions";
+
+    const editButton = document.createElement("button");
+    editButton.textContent = "Edit";
+    editButton.className = "edit";
+    editButton.addEventListener("click", () => startEditing(expense));
+    actionCell.appendChild(editButton);
+
     const deleteButton = document.createElement("button");
     deleteButton.textContent = "Delete";
     deleteButton.className = "delete";
     deleteButton.addEventListener("click", () => {
+      // Stop editing an expense that no longer exists.
+      if (expense.id === editingId) {
+        stopEditing();
+      }
       expenses = deleteExpense(expenses, expense.id);
       saveExpenses(localStorage, expenses);
       render();
@@ -123,19 +164,28 @@ function render() {
 }
 
 // R1: Add an expense when the form is submitted.
+// R9-R13: While editing, save the changes to that expense instead.
 document.getElementById("expense-form").addEventListener("submit", (event) => {
   event.preventDefault();
   const errorElement = document.getElementById("expense-error");
+  const name = document.getElementById("name").value;
+  const amount = document.getElementById("amount").value;
+  const category = document.getElementById("category").value;
+  const date = document.getElementById("date").value;
   try {
-    const expense = createExpense(
-      document.getElementById("name").value,
-      document.getElementById("amount").value,
-      document.getElementById("category").value,
-      document.getElementById("date").value
-    );
-    expenses = addExpense(expenses, expense);
+    if (editingId === null) {
+      const expense = createExpense(name, amount, category, date);
+      expenses = addExpense(expenses, expense);
+    } else {
+      // R13: updateExpense throws if a value is invalid, so nothing below runs
+      // and the old values are kept.
+      expenses = updateExpense(expenses, editingId, name, amount, category, date);
+    }
     saveExpenses(localStorage, expenses);
     errorElement.textContent = "";
+    if (editingId !== null) {
+      stopEditing();
+    }
     document.getElementById("name").value = "";
     document.getElementById("amount").value = "";
     document.getElementById("name").focus();
@@ -143,6 +193,11 @@ document.getElementById("expense-form").addEventListener("submit", (event) => {
   } catch (error) {
     errorElement.textContent = error.message;
   }
+});
+
+// R9: Cancel editing without saving.
+document.getElementById("cancel-edit").addEventListener("click", () => {
+  stopEditing();
 });
 
 // R6: Set the monthly budget when the budget form is submitted.

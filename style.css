@@ -112,6 +112,32 @@ button.delete:hover {
   background: #ffebee;
 }
 
+/* Edit and Cancel buttons: plain white buttons with a blue outline. */
+button.edit,
+button.secondary {
+  background: #fff;
+  color: #1565c0;
+}
+
+button.edit {
+  padding: 4px 10px;
+}
+
+button.edit:hover,
+button.secondary:hover {
+  background: #e3f2fd;
+}
+
+/* Keep the Edit and Delete buttons side by side with a small gap. */
+td.actions {
+  white-space: nowrap;
+  text-align: right;
+}
+
+td.actions button + button {
+  margin-left: 6px;
+}
+
 .error {
   color: #c62828;
   min-height: 1.2em;
