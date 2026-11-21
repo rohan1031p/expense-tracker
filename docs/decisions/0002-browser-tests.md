@@ -1,10 +1,10 @@
-# 002: Browser tests with playwright-core
+# 0002: Browser tests with playwright-core
 
 Date: 2026-11-20
 
 ## Context
 
-The logic tests (decision 001) check `expenses.js` but not the page. Running the real page in a browser found a bug they could not catch: on a phone-sized screen the expense table was wider than its card. Bugs in `app.js`, such as forgetting to save after deleting, would also go unnoticed.
+The logic tests (decision 0001) check `expenses.js` but not the page. Running the real page in a browser found a bug they could not catch: on a phone-sized screen the expense table was wider than its card. Bugs in `app.js`, such as forgetting to save after deleting, would also go unnoticed.
 
 ## Decision
 

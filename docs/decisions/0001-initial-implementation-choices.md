@@ -1,4 +1,4 @@
-# 001: Initial implementation choices
+# 0001: Initial implementation choices
 
 Date: 2026-11-20
 
