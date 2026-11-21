@@ -39,9 +39,12 @@ function renderExpenseList() {
 
     // textContent is used so names are shown as plain text, never as HTML.
     const cells = [expense.date, expense.name, expense.category, formatMoney(expense.amount)];
+    const labels = ["Date", "Name", "Category", "Amount"];
     cells.forEach((text, index) => {
       const cell = document.createElement("td");
       cell.textContent = text;
+      // The label is shown next to the value on small screens (see style.css).
+      cell.dataset.label = labels[index];
       if (index === 3) {
         cell.className = "number";
       }
@@ -49,6 +52,7 @@ function renderExpenseList() {
     });
 
     const actionCell = document.createElement("td");
+    actionCell.className = "actions";
     const deleteButton = document.createElement("button");
     deleteButton.textContent = "Delete";
     deleteButton.className = "delete";

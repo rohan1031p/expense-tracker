@@ -2,6 +2,12 @@
   box-sizing: border-box;
 }
 
+/* Make sure anything with the hidden attribute stays hidden,
+   even if another rule below gives it a display value. */
+[hidden] {
+  display: none !important;
+}
+
 body {
   margin: 0;
   font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -145,4 +151,51 @@ td {
 
 .number {
   text-align: right;
+}
+
+/* Small screens: show each expense as a small card instead of a table row,
+   so everything, including the Delete button, fits without scrolling. */
+@media (max-width: 560px) {
+  #expense-table thead {
+    display: none;
+  }
+
+  #expense-table,
+  #expense-table tbody,
+  #expense-table tr,
+  #expense-table td {
+    display: block;
+  }
+
+  #expense-table tr {
+    border: 1px solid #eee;
+    border-radius: 6px;
+    padding: 8px 12px;
+    margin-bottom: 10px;
+  }
+
+  #expense-table td {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    border-bottom: none;
+    padding: 4px 0;
+    text-align: right;
+  }
+
+  /* Show the column name (from data-label) on the left of each value. */
+  #expense-table td::before {
+    content: attr(data-label);
+    color: #666;
+    text-align: left;
+  }
+
+  #expense-table td.actions {
+    justify-content: flex-end;
+    padding-top: 8px;
+  }
+
+  #expense-table td.actions::before {
+    content: none;
+  }
 }

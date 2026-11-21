@@ -235,3 +235,29 @@ test("Layout (browser): the page does not scroll sideways on a phone-sized scree
   const pageWidth = await page.evaluate(() => document.documentElement.scrollWidth);
   assert.ok(pageWidth <= 375, "page is " + pageWidth + "px wide");
 });
+
+test("Layout (browser): on a phone-sized screen each expense is a card with labels and a visible Delete button", async () => {
+  await page.setViewportSize({ width: 375, height: 800 });
+  await addExpense("A long expense name for testing", "1234.56", "Entertainment", await today());
+
+  // The column headings are hidden; each value shows its own label instead.
+  assert.equal(await page.isVisible("#expense-table thead"), false);
+  const label = await page.$eval("#expense-list td:nth-child(2)", (td) =>
+    getComputedStyle(td, "::before").content
+  );
+  assert.equal(label, '"Name"');
+
+  // The Delete button is fully inside the screen, without scrolling sideways.
+  const box = await page.locator("#expense-list button.delete").boundingBox();
+  assert.ok(box.x >= 0 && box.x + box.width <= 375, "Delete button is at x=" + box.x);
+
+  // The card still works: Delete removes the expense.
+  await page.click("#expense-list button.delete");
+  assert.equal(await rowCount(), 0);
+});
+
+test("Layout (browser): on a wide screen expenses are shown as a table with headings", async () => {
+  await page.setViewportSize({ width: 1000, height: 800 });
+  await addExpense("Groceries", "45.20", "Food", await today());
+  assert.equal(await page.isVisible("#expense-table thead"), true);
+});

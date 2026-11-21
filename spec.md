@@ -19,7 +19,7 @@ The Expense Tracker is a web app that helps users keep track of their expenses a
 The user can add an expense with a name, amount, category, and date. The amount must be greater than zero. The name and date are required, and the category is chosen from a fixed list: Food, Transport, Housing, Utilities, Entertainment, Health, Shopping, Other.
 
 ### R2: View expenses
-The app displays a list of saved expenses with their name, amount, category, and date. Expenses are listed newest date first.
+The app displays a list of saved expenses with their name, amount, category, and date. Expenses are listed newest date first. On wide screens they are shown as a table; on narrow screens (560px or less) each expense is shown as a small card with labels, so everything, including the Delete button, fits without scrolling sideways.
 
 ### R3: Delete an expense
 The user can delete an expense from the list.
