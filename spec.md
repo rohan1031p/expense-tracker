@@ -86,8 +86,8 @@ Browser tests also open the real page and check every requirement through the fo
 
 ## Implementation
 
-- `expenses.js`: expense logic and Local Storage saving, with no page code, so it can be tested in Node.
-- `app.js`: connects the page to the logic.
+- `expenses.js`: expense logic (adding, editing, deleting, totals) and Local Storage saving, with no page code, so it can be tested in Node. Adding and editing share one set of checks (`checkExpenseValues`).
+- `app.js`: connects the page to the logic. Editing reuses the add form; `editingId` remembers which expense is being edited (see decision 0003).
 - `server.js`: local server for `npm start`, using only built-in Node modules.
 - `tests/expenses.test.js`: logic tests; each test names the requirement it checks.
 - `tests/browser.test.js`: browser tests of the real page; each test names the requirement it checks.
