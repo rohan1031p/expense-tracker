@@ -4,6 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Expense Tracker</title>
+  <!-- Empty icon so the browser does not request a missing favicon.ico -->
+  <link rel="icon" href="data:,">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -67,6 +69,7 @@
     <section class="card">
       <h2>Expenses</h2>
       <p id="empty-message">No expenses yet.</p>
+      <div class="table-wrap">
       <table id="expense-table">
         <thead>
           <tr>
@@ -79,6 +82,7 @@
         </thead>
         <tbody id="expense-list"></tbody>
       </table>
+      </div>
     </section>
   </main>
 

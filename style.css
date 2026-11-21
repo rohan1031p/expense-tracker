@@ -125,6 +125,12 @@ button.delete:hover {
   border-bottom: 1px solid #eee;
 }
 
+/* On narrow screens the table scrolls inside its card instead of
+   making the whole page scroll sideways. */
+.table-wrap {
+  overflow-x: auto;
+}
+
 table {
   width: 100%;
   border-collapse: collapse;
