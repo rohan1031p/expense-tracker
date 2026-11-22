@@ -66,6 +66,25 @@ After an edit, the total spent, spent this month, spending by category, and budg
 ### R13: Invalid edits are not saved
 Edited values are checked with the same rules as a new expense (R1): the name is required, the amount must be greater than zero, the category must be from the list, and the date is required. If any value is invalid, nothing is changed or saved, the error is shown under the form (the same messages as R1), and the form stays in edit mode so the user can fix it.
 
+### Filters (R14-R16)
+The Expenses section has a row of filters above the list: a Category drop-down, a Month drop-down, and a "Clear filters" button.
+
+- Filters change **only the expense list**. Total spent, spent this month, spending by category, and budget remaining always use all expenses (see decision 0004).
+- When both filters are set, an expense is shown only if it matches both (for example, Food **and** November 2026).
+- The list stays sorted newest date first.
+- If expenses exist but none match the filters, the list is hidden and the message "No expenses match the filters." is shown. If there are no expenses at all, the message is "No expenses yet." as before.
+- Filters are not saved. After a reload both drop-downs are back to "All" and every expense is shown.
+- Filters stay set when the user adds, edits, or deletes an expense, and the list is filtered again straight away. An expense that no longer matches (for example, after its category was edited) disappears from the filtered list but is not deleted.
+
+### R14: Filter by category
+The Category filter has "All categories" (the default) followed by the fixed category list from R1. Choosing a category shows only expenses in that category.
+
+### R15: Filter by month
+The Month filter has "All months" (the default) followed by every month that has at least one expense, newest first, shown like "November 2026". Choosing a month shows only expenses dated in that calendar month (see decision 0005). The list of months is updated whenever expenses are added, edited, or deleted. If the chosen month no longer has any expenses, the filter goes back to "All months".
+
+### R16: Clear the filters
+The "Clear filters" button sets both filters back to "All categories" and "All months", so every expense is shown again.
+
 ## Running the app
 
 The app should run locally with:
@@ -80,14 +99,14 @@ Automated tests should run with:
 
 `npm test`
 
-Tests should check the expense logic, including adding, editing, deleting, totals, category spending, and budget calculations.
+Tests should check the expense logic, including adding, editing, deleting, filtering, totals, category spending, and budget calculations.
 
 Browser tests also open the real page and check every requirement through the forms and buttons, including that data is still there after a reload (R8) and that the page does not scroll sideways on a phone-sized screen.
 
 ## Implementation
 
-- `expenses.js`: expense logic (adding, editing, deleting, totals) and Local Storage saving, with no page code, so it can be tested in Node. Adding and editing share one set of checks (`checkExpenseValues`).
-- `app.js`: connects the page to the logic. Editing reuses the add form; `editingId` remembers which expense is being edited (see decision 0003).
+- `expenses.js`: expense logic (adding, editing, deleting, filtering, totals) and Local Storage saving, with no page code, so it can be tested in Node. Adding and editing share one set of checks (`checkExpenseValues`). Filtering uses `filterExpenses`, `getMonthsWithExpenses`, and `formatMonth`.
+- `app.js`: connects the page to the logic. Editing reuses the add form; `editingId` remembers which expense is being edited (see decision 0003). The filters are read from the two drop-downs each time the list is drawn, so there is no separate filter state to keep in sync.
 - `server.js`: local server for `npm start`, using only built-in Node modules.
 - `tests/expenses.test.js`: logic tests; each test names the requirement it checks.
 - `tests/browser.test.js`: browser tests of the real page; each test names the requirement it checks.
