@@ -3,6 +3,8 @@
 
 let expenses = loadExpenses(localStorage);
 let budget = loadBudget(localStorage);
+// R17: Monthly budget for each category, e.g. { Food: 100 }.
+let categoryBudgets = loadCategoryBudgets(localStorage);
 
 // R9: The id of the expense being edited, or null when the form adds new expenses.
 let editingId = null;
@@ -29,14 +31,24 @@ function addOption(select, value, text) {
   select.appendChild(option);
 }
 
-// Fill the category drop-down in the form, and the category filter (R14).
+// Fill the category drop-downs: the expense form, the category filter (R14),
+// and the category budget form (R17).
 function setupCategories() {
   const select = document.getElementById("category");
   const filter = document.getElementById("filter-category");
+  const budgetSelect = document.getElementById("category-budget-category");
   for (const category of CATEGORIES) {
     addOption(select, category, category);
     addOption(filter, category, category);
+    addOption(budgetSelect, category, category);
   }
+}
+
+// R17: Show the chosen category's current budget in the Budget box (empty if none).
+function showChosenCategoryBudget() {
+  const category = document.getElementById("category-budget-category").value;
+  const value = categoryBudgets[category];
+  document.getElementById("category-budget").value = value === undefined ? "" : value;
 }
 
 // R15: Rebuild the month filter from the months that have expenses.
@@ -147,29 +159,43 @@ function renderExpenseList() {
   document.getElementById("expense-table").hidden = isEmpty;
 }
 
-// R5: Draw the spending for each category.
+// R5, R18: Draw this month's spending in each category next to its budget.
+// A category over its budget gets the "over" class (red) and an "Over by" amount.
 function renderCategoryTotals() {
   const list = document.getElementById("category-list");
   list.innerHTML = "";
-  const totals = getTotalsByCategory(expenses);
+  const thisMonth = getMonth(todayString());
 
-  for (const category of CATEGORIES) {
-    if (totals[category] === undefined) {
-      continue;
-    }
+  for (const row of getCategorySummary(expenses, categoryBudgets, thisMonth)) {
     const item = document.createElement("li");
     const name = document.createElement("span");
-    name.textContent = category;
+    name.textContent = row.category;
+
     const amount = document.createElement("span");
-    amount.textContent = formatMoney(totals[category]);
+    amount.className = "category-amount";
+    if (row.budget === null) {
+      amount.textContent = formatMoney(row.spent) + " (no budget)";
+    } else {
+      amount.textContent = formatMoney(row.spent) + " of " + formatMoney(row.budget);
+    }
+
     item.appendChild(name);
     item.appendChild(amount);
+
+    if (row.over) {
+      item.classList.add("over");
+      const overBy = document.createElement("span");
+      overBy.className = "over-by";
+      overBy.textContent = "Over by " + formatMoney(row.overBy);
+      amount.appendChild(document.createTextNode(" "));
+      amount.appendChild(overBy);
+    }
     list.appendChild(item);
   }
 
   if (list.children.length === 0) {
     const item = document.createElement("li");
-    item.textContent = "Nothing spent yet.";
+    item.textContent = "Nothing spent this month.";
     list.appendChild(item);
   }
 }
@@ -260,7 +286,41 @@ document.getElementById("budget-form").addEventListener("submit", (event) => {
   }
 });
 
+// R17: Set the chosen category's monthly budget.
+document.getElementById("category-budget-form").addEventListener("submit", (event) => {
+  event.preventDefault();
+  const errorElement = document.getElementById("category-budget-error");
+  const category = document.getElementById("category-budget-category").value;
+  const value = document.getElementById("category-budget").value;
+  try {
+    categoryBudgets = setCategoryBudget(categoryBudgets, category, value);
+    saveCategoryBudgets(localStorage, categoryBudgets);
+    errorElement.textContent = "";
+    showChosenCategoryBudget();
+    renderCategoryTotals();
+  } catch (error) {
+    errorElement.textContent = error.message;
+  }
+});
+
+// R17: Remove the chosen category's budget.
+document.getElementById("remove-category-budget").addEventListener("click", () => {
+  const category = document.getElementById("category-budget-category").value;
+  categoryBudgets = removeCategoryBudget(categoryBudgets, category);
+  saveCategoryBudgets(localStorage, categoryBudgets);
+  document.getElementById("category-budget-error").textContent = "";
+  showChosenCategoryBudget();
+  renderCategoryTotals();
+});
+
+// R17: Choosing a category shows its current budget.
+document.getElementById("category-budget-category").addEventListener("change", () => {
+  document.getElementById("category-budget-error").textContent = "";
+  showChosenCategoryBudget();
+});
+
 setupCategories();
+showChosenCategoryBudget();
 // R16: Filters are not saved, so always start with all expenses shown,
 // even if the browser tries to restore the old choice after a reload.
 document.getElementById("filter-category").value = "";

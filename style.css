@@ -167,11 +167,29 @@ td.actions button + button {
   padding: 0;
 }
 
+/* Each row wraps onto two lines on narrow screens instead of getting too wide. */
 .plain-list li {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
+  gap: 4px 12px;
   padding: 6px 0;
   border-bottom: 1px solid #eee;
+}
+
+.category-amount {
+  text-align: right;
+}
+
+/* R18: A category over its budget. The row is red (the .over rule above)
+   and the "Over by" amount is bold. */
+.over-by {
+  font-weight: 600;
+}
+
+/* R17: The category budget form below the category list. */
+.category-budget-form {
+  margin-top: 16px;
 }
 
 /* On narrow screens the table scrolls inside its card instead of

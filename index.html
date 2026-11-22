@@ -61,10 +61,20 @@
       <p id="expense-error" class="error" role="alert"></p>
     </section>
 
-    <!-- R5: Spending by category -->
+    <!-- R5, R17, R18: This month's spending in each category, compared with its budget -->
     <section class="card">
-      <h2>Spending by category</h2>
+      <h2 id="category-heading">Spending by category (this month)</h2>
       <ul id="category-list" class="plain-list"></ul>
+
+      <form id="category-budget-form" class="row category-budget-form">
+        <label for="category-budget-category">Category</label>
+        <select id="category-budget-category"></select>
+        <label for="category-budget">Budget</label>
+        <input id="category-budget" type="number" min="0" step="0.01" placeholder="e.g. 100">
+        <button type="submit">Set budget</button>
+        <button type="button" id="remove-category-budget" class="secondary">Remove budget</button>
+      </form>
+      <p id="category-budget-error" class="error" role="alert"></p>
     </section>
 
     <!-- R2, R3: Expense list -->
