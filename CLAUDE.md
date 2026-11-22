@@ -31,7 +31,8 @@ This is an Expense Tracker web app for tracking expenses and monthly budgets.
 - Get "today" from the page (`todayString()`), not from Node, so tests do not break around midnight or at the start of a month.
 - Any new control near the list must fit at phone width (375px); add it to a "Layout (browser)" test.
 - A browser test that clicks or selects something that does not exist waits 30 seconds before failing. When tests are expected to fail (tests written before the code), run `npm test` in the background or with a long timeout. For quick checks, run only `node --test tests/expenses.test.js`.
-- The test server reads the app files on every request, so do not edit `index.html`, `app.js`, `expenses.js` or `style.css` while a browser test run is still going.
+- The test server reads the app files on every request, so do not edit `index.html`, `app.js`, `expenses.js` or `style.css` while a browser test run is still going. A test-first run can take about 10 minutes. While it runs, you can write the changes in a copy of the files outside the project, and run the logic tests against the copied `expenses.js` there. Copy the files into the project when the run has finished.
+- Many browser tests compare on-screen text exactly (for example the rows of the category box). Changing a label or message means updating every test that checks it.
 
 ## Code notes
 
@@ -49,6 +50,7 @@ This is an Expense Tracker web app for tracking expenses and monthly budgets.
 - Use commit messages that explain what changed and why.
 - Never amend or undo a commit.
 - Do not commit secrets, passwords, or personal information.
+- Git prints "LF will be replaced by CRLF" warnings on every commit. They are harmless; do not add a `.gitattributes` file without asking.
 
 ## Project documentation
 
