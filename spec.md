@@ -27,8 +27,15 @@ The user can delete an expense from the list.
 ### R4: Total spending
 The app displays the total amount spent across all expenses. It also displays the amount spent in the current month.
 
-### R5: Spending by category
-The app displays how much money was spent in each category.
+### R5: Spending by category, compared with each category's budget (changed in Round 4)
+The "Spending by category (this month)" box shows, for each category, how much was spent **in the current calendar month** next to that category's monthly budget (R17). Category budgets are monthly, so spending from earlier months is not counted here (see decision 0006). All-time totals per category are no longer shown; "Total spent" (R4) still covers all expenses.
+
+- A category is listed if it has spending this month **or** a budget. Categories are listed in the fixed order from R1.
+- With a budget, the row reads like "Food $45.20 of $100.00".
+- Without a budget, the row reads like "Food $45.20 (no budget)".
+- A category with a budget but nothing spent this month reads like "Food $0.00 of $100.00".
+- If nothing is listed, the box shows "Nothing spent this month."
+- Like the other totals, the box uses all expenses and ignores the list filters (decision 0004).
 
 ### R6: Monthly budget
 The user can set a monthly budget of zero or more. The budget is saved in Local Storage.
@@ -85,6 +92,21 @@ The Month filter has "All months" (the default) followed by every month that has
 ### R16: Clear the filters
 The "Clear filters" button sets both filters back to "All categories" and "All months", so every expense is shown again.
 
+### Category budgets (R17-R18)
+The category budgets are **independent** of the overall monthly budget (R6, R7). That budget and "Budget remaining" work exactly as before. The category budgets do not have to add up to the overall budget, and no warning is shown if they add up to more.
+
+### R17: Set a budget for each category
+The "Spending by category (this month)" box has a form with a Category drop-down (the fixed list from R1), a Budget amount, a "Set budget" button and a "Remove budget" button.
+
+- "Set budget" saves the amount as that category's monthly budget. The amount must be zero or more, with the same check and message as R6 ("Budget must be zero or more."). Setting a budget for a category that already has one replaces it.
+- "Remove budget" removes that category's budget. If it has no spending this month, it disappears from the box.
+- Choosing a category in the drop-down fills the Budget box with that category's current budget, or empties it if there is none.
+- Category budgets are saved in Local Storage, so they are still there after a reload.
+- Each category's budget applies to every month; there is no separate budget per month.
+
+### R18: Show when a category is over its budget
+A category is over budget when its spending this month is **more than** its budget (spending exactly equal to the budget is not over). An over-budget row is shown in red and ends with "Over by" and the amount, for example "Food $120.00 of $100.00 Over by $20.00". The row updates straight away when expenses are added, edited or deleted, or when the budget changes. A category with no budget is never over budget.
+
 ## Running the app
 
 The app should run locally with:
@@ -99,13 +121,13 @@ Automated tests should run with:
 
 `npm test`
 
-Tests should check the expense logic, including adding, editing, deleting, filtering, totals, category spending, and budget calculations.
+Tests should check the expense logic, including adding, editing, deleting, filtering, totals, category spending, category budgets, and budget calculations.
 
 Browser tests also open the real page and check every requirement through the forms and buttons, including that data is still there after a reload (R8) and that the page does not scroll sideways on a phone-sized screen.
 
 ## Implementation
 
-- `expenses.js`: expense logic (adding, editing, deleting, filtering, totals) and Local Storage saving, with no page code, so it can be tested in Node. Adding and editing share one set of checks (`checkExpenseValues`). Filtering uses `filterExpenses`, `getMonthsWithExpenses`, and `formatMonth`.
+- `expenses.js`: expense logic (adding, editing, deleting, filtering, totals) and Local Storage saving, with no page code, so it can be tested in Node. Adding and editing share one set of checks (`checkExpenseValues`). Filtering uses `filterExpenses`, `getMonthsWithExpenses`, and `formatMonth`. Category budgets are a plain object such as `{ Food: 100 }`, changed with `setCategoryBudget` and `removeCategoryBudget`, saved with `saveCategoryBudgets` and `loadCategoryBudgets`, and compared with spending by `getCategorySummary`.
 - `app.js`: connects the page to the logic. Editing reuses the add form; `editingId` remembers which expense is being edited (see decision 0003). The filters are read from the two drop-downs each time the list is drawn, so there is no separate filter state to keep in sync.
 - `server.js`: local server for `npm start`, using only built-in Node modules.
 - `tests/expenses.test.js`: logic tests; each test names the requirement it checks.
