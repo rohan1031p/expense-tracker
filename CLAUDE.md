@@ -24,6 +24,25 @@ This is an Expense Tracker web app for tracking expenses and monthly budgets.
 - Run all tests after making changes.
 - Do not say tests passed unless they actually passed.
 
+### Notes on the test setup
+
+- Every browser test also fails if the page logs any JavaScript or loading error (see `afterEach` in `tests/browser.test.js`). A console error in new code makes unrelated tests fail.
+- Tests of invalid input must turn off the browser's own form checks first (`form.noValidate = true`), so the app's checks are tested.
+- Get "today" from the page (`todayString()`), not from Node, so tests do not break around midnight or at the start of a month.
+- Any new control near the list must fit at phone width (375px); add it to a "Layout (browser)" test.
+- A browser test that clicks or selects something that does not exist waits 30 seconds before failing. When tests are expected to fail (tests written before the code), run `npm test` in the background or with a long timeout. For quick checks, run only `node --test tests/expenses.test.js`.
+- The test server reads the app files on every request, so do not edit `index.html`, `app.js`, `expenses.js` or `style.css` while a browser test run is still going.
+
+## Code notes
+
+- `server.js` serves only the files listed in `FILES`. A new `.js` or `.css` file must be added there, or the page cannot load it.
+- The browser tests find elements by id and class. If you rename an id or class in `index.html` or `app.js`, update the tests too.
+
+## Working with the user
+
+- If a requirement is unclear, ask and wait for the answer before writing code.
+- At the end of a round, list every decision you made that the user did not ask for.
+
 ## Git
 
 - Make small commits for separate changes.
