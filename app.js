@@ -21,15 +21,38 @@ function todayString() {
   return now.getFullYear() + "-" + month + "-" + day;
 }
 
-// Fill the category drop-down.
+// Add an <option> to a drop-down.
+function addOption(select, value, text) {
+  const option = document.createElement("option");
+  option.value = value;
+  option.textContent = text;
+  select.appendChild(option);
+}
+
+// Fill the category drop-down in the form, and the category filter (R14).
 function setupCategories() {
   const select = document.getElementById("category");
+  const filter = document.getElementById("filter-category");
   for (const category of CATEGORIES) {
-    const option = document.createElement("option");
-    option.value = category;
-    option.textContent = category;
-    select.appendChild(option);
+    addOption(select, category, category);
+    addOption(filter, category, category);
   }
+}
+
+// R15: Rebuild the month filter from the months that have expenses.
+// The chosen month stays chosen if it still has expenses; otherwise
+// the filter goes back to "All months".
+function renderMonthFilter() {
+  const select = document.getElementById("filter-month");
+  const chosen = select.value;
+  const months = getMonthsWithExpenses(expenses);
+
+  select.innerHTML = "";
+  addOption(select, "", "All months");
+  for (const month of months) {
+    addOption(select, month, formatMonth(month));
+  }
+  select.value = months.includes(chosen) ? chosen : "";
 }
 
 // R9: Put the form into edit mode, filled with this expense's values.
@@ -60,11 +83,16 @@ function stopEditing() {
 }
 
 // R2, R3, R9: Draw the list of expenses with Edit and Delete buttons on each row.
+// R14, R15: Only the expenses that match the filters are drawn.
 function renderExpenseList() {
   const list = document.getElementById("expense-list");
   list.innerHTML = "";
 
-  for (const expense of sortByDateNewestFirst(expenses)) {
+  const category = document.getElementById("filter-category").value;
+  const month = document.getElementById("filter-month").value;
+  const shown = filterExpenses(expenses, category, month);
+
+  for (const expense of sortByDateNewestFirst(shown)) {
     const row = document.createElement("tr");
 
     // textContent is used so names are shown as plain text, never as HTML.
@@ -108,8 +136,14 @@ function renderExpenseList() {
     list.appendChild(row);
   }
 
-  const isEmpty = expenses.length === 0;
-  document.getElementById("empty-message").hidden = !isEmpty;
+  const emptyMessage = document.getElementById("empty-message");
+  if (expenses.length === 0) {
+    emptyMessage.textContent = "No expenses yet.";
+  } else {
+    emptyMessage.textContent = "No expenses match the filters.";
+  }
+  const isEmpty = shown.length === 0;
+  emptyMessage.hidden = !isEmpty;
   document.getElementById("expense-table").hidden = isEmpty;
 }
 
@@ -160,8 +194,20 @@ function renderSummary() {
 function render() {
   renderSummary();
   renderCategoryTotals();
+  renderMonthFilter();
   renderExpenseList();
 }
+
+// R14, R15: Draw the list again when a filter changes.
+document.getElementById("filter-category").addEventListener("change", renderExpenseList);
+document.getElementById("filter-month").addEventListener("change", renderExpenseList);
+
+// R16: Clear both filters and show every expense again.
+document.getElementById("clear-filters").addEventListener("click", () => {
+  document.getElementById("filter-category").value = "";
+  document.getElementById("filter-month").value = "";
+  renderExpenseList();
+});
 
 // R1: Add an expense when the form is submitted.
 // R9-R13: While editing, save the changes to that expense instead.
@@ -215,6 +261,10 @@ document.getElementById("budget-form").addEventListener("submit", (event) => {
 });
 
 setupCategories();
+// R16: Filters are not saved, so always start with all expenses shown,
+// even if the browser tries to restore the old choice after a reload.
+document.getElementById("filter-category").value = "";
+document.getElementById("filter-month").value = "";
 document.getElementById("date").value = todayString();
 if (budget !== null) {
   document.getElementById("budget").value = budget;

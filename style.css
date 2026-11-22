@@ -138,6 +138,23 @@ td.actions button + button {
   margin-left: 6px;
 }
 
+/* R14-R16: The filter row above the expense list.
+   It wraps onto more lines on narrow screens. */
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: end;
+  margin-bottom: 12px;
+}
+
+.filters label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.9rem;
+}
+
 .error {
   color: #c62828;
   min-height: 1.2em;
