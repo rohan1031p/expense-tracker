@@ -371,3 +371,135 @@ test("R15: formatMonth shows a month like 'November 2026'", () => {
 test("R16: with no filters (empty values), every expense is kept", () => {
   assert.deepEqual(ids(app.filterExpenses(filterList(), "", "")), ["a", "b", "c", "d"]);
 });
+
+// ---------- R5 (changed), R17, R18: Category budgets ----------
+
+test("R5: getCategorySummary counts only spending in the given month", () => {
+  const expenses = [
+    sampleExpense("1", 10, "Food", "2026-11-01"),
+    sampleExpense("2", 5.5, "Food", "2026-11-20"),
+    sampleExpense("3", 99, "Food", "2026-10-31"),
+    sampleExpense("4", 7, "Food", "2025-11-15"),
+  ];
+  const summary = app.getCategorySummary(expenses, {}, "2026-11");
+  assert.deepEqual(summary, [
+    { category: "Food", spent: 15.5, budget: null, over: false, overBy: 0 },
+  ]);
+});
+
+test("R5: getCategorySummary lists categories with spending or a budget, in the fixed order", () => {
+  const expenses = [
+    sampleExpense("1", 30, "Shopping", "2026-11-02"),
+    sampleExpense("2", 12, "Food", "2026-11-03"),
+    sampleExpense("3", 50, "Health", "2026-10-03"),
+  ];
+  const budgets = { Transport: 40, Food: 100 };
+  const summary = app.getCategorySummary(expenses, budgets, "2026-11");
+  assert.deepEqual(summary, [
+    { category: "Food", spent: 12, budget: 100, over: false, overBy: 0 },
+    { category: "Transport", spent: 0, budget: 40, over: false, overBy: 0 },
+    { category: "Shopping", spent: 30, budget: null, over: false, overBy: 0 },
+  ]);
+});
+
+test("R5: getCategorySummary is empty with no spending this month and no budgets", () => {
+  assert.deepEqual(app.getCategorySummary([], {}, "2026-11"), []);
+  const old = [sampleExpense("1", 10, "Food", "2026-10-01")];
+  assert.deepEqual(app.getCategorySummary(old, {}, "2026-11"), []);
+});
+
+test("R17: setCategoryBudget sets a budget and returns a new object", () => {
+  const original = { Food: 100 };
+  const budgets = app.setCategoryBudget(original, "Transport", "40.5");
+  assert.deepEqual(budgets, { Food: 100, Transport: 40.5 });
+  assert.deepEqual(original, { Food: 100 });
+});
+
+test("R17: setCategoryBudget replaces an existing budget, accepts zero, and rounds to cents", () => {
+  assert.deepEqual(app.setCategoryBudget({ Food: 100 }, "Food", "75"), { Food: 75 });
+  assert.deepEqual(app.setCategoryBudget({}, "Food", "0"), { Food: 0 });
+  assert.deepEqual(app.setCategoryBudget({}, "Food", "10.456"), { Food: 10.46 });
+});
+
+test("R17: setCategoryBudget rejects negative, empty, or non-number amounts", () => {
+  for (const value of ["-1", "", "abc"]) {
+    assert.throws(() => app.setCategoryBudget({}, "Food", value), /Budget must be zero or more/);
+  }
+});
+
+test("R17: setCategoryBudget rejects a category that is not in the list", () => {
+  assert.throws(() => app.setCategoryBudget({}, "Pets", "10"), /Please choose a category/);
+  assert.throws(() => app.setCategoryBudget({}, "", "10"), /Please choose a category/);
+});
+
+test("R17: removeCategoryBudget removes only that category's budget", () => {
+  const original = { Food: 100, Transport: 40 };
+  assert.deepEqual(app.removeCategoryBudget(original, "Food"), { Transport: 40 });
+  assert.deepEqual(original, { Food: 100, Transport: 40 });
+  assert.deepEqual(app.removeCategoryBudget(original, "Health"), { Food: 100, Transport: 40 });
+});
+
+test("R17: category budgets are saved and loaded from storage", () => {
+  const storage = createFakeStorage();
+  assert.deepEqual(app.loadCategoryBudgets(storage), {});
+  app.saveCategoryBudgets(storage, { Food: 100, Other: 0 });
+  assert.deepEqual(app.loadCategoryBudgets(storage), { Food: 100, Other: 0 });
+});
+
+test("R17: category budgets are saved separately from the overall budget", () => {
+  const storage = createFakeStorage();
+  app.saveBudget(storage, 500);
+  app.saveCategoryBudgets(storage, { Food: 100 });
+  assert.equal(app.loadBudget(storage), 500);
+  assert.deepEqual(app.loadCategoryBudgets(storage), { Food: 100 });
+});
+
+test("R17: loading broken or invalid saved category budgets does not crash", () => {
+  const storage = createFakeStorage();
+  storage.setItem("categoryBudgets", "{not json");
+  assert.deepEqual(app.loadCategoryBudgets(storage), {});
+  storage.setItem("categoryBudgets", "[1, 2]");
+  assert.deepEqual(app.loadCategoryBudgets(storage), {});
+  storage.setItem("categoryBudgets", JSON.stringify({ Food: 50, Pets: 10, Health: -5, Other: "x" }));
+  assert.deepEqual(app.loadCategoryBudgets(storage), { Food: 50 });
+});
+
+test("R18: a category is over budget when this month's spending is more than its budget", () => {
+  const expenses = [
+    sampleExpense("1", 80.1, "Food", "2026-11-01"),
+    sampleExpense("2", 40.2, "Food", "2026-11-02"),
+  ];
+  const [food] = app.getCategorySummary(expenses, { Food: 100 }, "2026-11");
+  assert.equal(food.spent, 120.3);
+  assert.equal(food.over, true);
+  assert.equal(food.overBy, 20.3);
+});
+
+test("R18: spending exactly equal to the budget is not over budget", () => {
+  const expenses = [sampleExpense("1", 100, "Food", "2026-11-01")];
+  const [food] = app.getCategorySummary(expenses, { Food: 100 }, "2026-11");
+  assert.equal(food.over, false);
+  assert.equal(food.overBy, 0);
+});
+
+test("R18: a category with no budget is never over; a budget of 0 with spending is over", () => {
+  const expenses = [
+    sampleExpense("1", 500, "Food", "2026-11-01"),
+    sampleExpense("2", 3, "Other", "2026-11-01"),
+  ];
+  const summary = app.getCategorySummary(expenses, { Other: 0 }, "2026-11");
+  assert.equal(summary[0].category, "Food");
+  assert.equal(summary[0].over, false);
+  assert.equal(summary[1].category, "Other");
+  assert.equal(summary[1].over, true);
+  assert.equal(summary[1].overBy, 3);
+});
+
+test("R18: spending from other months does not make a category over budget", () => {
+  const expenses = [
+    sampleExpense("1", 20, "Food", "2026-11-01"),
+    sampleExpense("2", 200, "Food", "2026-10-01"),
+  ];
+  const [food] = app.getCategorySummary(expenses, { Food: 100 }, "2026-11");
+  assert.equal(food.over, false);
+});

@@ -160,16 +160,23 @@ test("R4 (browser): total spent adds up all expenses; this month's spending is s
 
 // ---------- R5: Spending by category ----------
 
-test("R5 (browser): spending is shown for each category", async () => {
+// The rows of the "Spending by category" box, as plain text with single spaces.
+async function categoryRows() {
+  return page.$$eval("#category-list li", (lis) =>
+    lis.map((li) => li.innerText.replace(/\s+/g, " ").trim())
+  );
+}
+
+test("R5 (browser): spending this month is shown for each category, without a budget", async () => {
   const date = await today();
   await addExpense("Groceries", "45.20", "Food", date);
   await addExpense("Coffee", "4.80", "Food", date);
   await addExpense("Bus pass", "30", "Transport", date);
+  // Last month's spending is not counted in the category box (R5 changed in Round 4).
+  await addExpense("Old lunch", "12", "Food", lastMonthDate(date));
 
-  const items = await page.$$eval("#category-list li", (lis) =>
-    lis.map((li) => li.innerText.replace(/\s+/g, " ").trim())
-  );
-  assert.deepEqual(items, ["Food $50.00", "Transport $30.00"]);
+  assert.deepEqual(await categoryRows(), ["Food $50.00 (no budget)", "Transport $30.00 (no budget)"]);
+  assert.match(await text("#category-heading"), /this month/);
 });
 
 // ---------- R6: Monthly budget ----------
@@ -366,10 +373,8 @@ test("R12 (browser): totals, category spending, and budget remaining update afte
   assert.equal(await text("#total"), "$80.00");
   assert.equal(await text("#month-total"), "$30.00");
   assert.equal(await text("#remaining"), "$70.00 of $100.00");
-  const items = await page.$$eval("#category-list li", (lis) =>
-    lis.map((li) => li.innerText.replace(/\s+/g, " ").trim())
-  );
-  assert.deepEqual(items, ["Transport $80.00"]);
+  // Groceries moved to last month, so only the bus pass counts in this month's category box.
+  assert.deepEqual(await categoryRows(), ["Transport $30.00 (no budget)"]);
 });
 
 test("R13 (browser): an empty name shows an error and nothing is changed", async () => {
@@ -473,10 +478,8 @@ test("R14 (browser): the filter changes only the list, not the totals or budget"
   assert.equal(await text("#total"), "$87.20");
   assert.equal(await text("#month-total"), "$75.20");
   assert.equal(await text("#remaining"), "$24.80 of $100.00");
-  const items = await page.$$eval("#category-list li", (lis) =>
-    lis.map((li) => li.innerText.replace(/\s+/g, " ").trim())
-  );
-  assert.deepEqual(items, ["Food $57.20", "Transport $30.00"]);
+  // The category box shows this month's spending (R5) and ignores the filter.
+  assert.deepEqual(await categoryRows(), ["Food $45.20 (no budget)", "Transport $30.00 (no budget)"]);
 });
 
 test("R14 (browser): a category with no expenses shows a 'no matches' message", async () => {
@@ -591,7 +594,222 @@ test("R16 (browser): filters are not saved, so after a reload all expenses are s
   assert.equal(await rowCount(), 3);
 });
 
+// ---------- R5 (changed), R17, R18: Category budgets ----------
+
+async function setCategoryBudget(category, amount) {
+  await page.selectOption("#category-budget-category", category);
+  await page.fill("#category-budget", amount);
+  await page.click("#category-budget-form button[type=submit]");
+}
+
+async function removeCategoryBudget(category) {
+  await page.selectOption("#category-budget-category", category);
+  await page.click("#remove-category-budget");
+}
+
+// The rows of the category box that are marked as over budget.
+async function overRows() {
+  return page.$$eval("#category-list li.over", (lis) =>
+    lis.map((li) => li.innerText.replace(/\s+/g, " ").trim())
+  );
+}
+
+test("R5 (browser): with nothing spent this month and no budgets, the box says so", async () => {
+  assert.deepEqual(await categoryRows(), ["Nothing spent this month."]);
+  await addExpense("Old lunch", "12", "Food", lastMonthDate(await today()));
+  assert.deepEqual(await categoryRows(), ["Nothing spent this month."]);
+});
+
+test("R5 (browser): each category's spending is shown next to its budget", async () => {
+  const date = await today();
+  await addExpense("Groceries", "45.20", "Food", date);
+  await addExpense("Bus pass", "30", "Transport", date);
+  await setCategoryBudget("Food", "100");
+  await setCategoryBudget("Health", "25");
+
+  assert.deepEqual(await categoryRows(), [
+    "Food $45.20 of $100.00",
+    "Transport $30.00 (no budget)",
+    "Health $0.00 of $25.00",
+  ]);
+});
+
+test("R17 (browser): the category budget form lists every category", async () => {
+  assert.deepEqual(await optionLabels("#category-budget-category"), [
+    "Food", "Transport", "Housing", "Utilities", "Entertainment", "Health", "Shopping", "Other",
+  ]);
+});
+
+test("R17 (browser): setting a budget again replaces it, and choosing a category shows its budget", async () => {
+  await setCategoryBudget("Food", "100");
+  await setCategoryBudget("Food", "80");
+  assert.deepEqual(await categoryRows(), ["Food $0.00 of $80.00"]);
+  assert.equal(await text("#category-budget-error"), "");
+
+  await page.selectOption("#category-budget-category", "Transport");
+  assert.equal(await page.inputValue("#category-budget"), "");
+  await page.selectOption("#category-budget-category", "Food");
+  assert.equal(await page.inputValue("#category-budget"), "80");
+});
+
+test("R17 (browser): Remove budget removes only that category's budget", async () => {
+  await addExpense("Groceries", "45.20", "Food", await today());
+  await setCategoryBudget("Food", "100");
+  await setCategoryBudget("Health", "25");
+
+  await removeCategoryBudget("Food");
+  assert.deepEqual(await categoryRows(), ["Food $45.20 (no budget)", "Health $0.00 of $25.00"]);
+  assert.equal(await page.inputValue("#category-budget"), "");
+
+  // Health has no spending, so without a budget it is no longer listed.
+  await removeCategoryBudget("Health");
+  assert.deepEqual(await categoryRows(), ["Food $45.20 (no budget)"]);
+});
+
+test("R17 (browser): a negative or empty category budget shows an error and is not saved", async () => {
+  await page.$eval("#category-budget-form", (form) => (form.noValidate = true));
+  await setCategoryBudget("Food", "-5");
+  assert.equal(await text("#category-budget-error"), "Budget must be zero or more.");
+  assert.deepEqual(await categoryRows(), ["Nothing spent this month."]);
+
+  await setCategoryBudget("Food", "");
+  assert.equal(await text("#category-budget-error"), "Budget must be zero or more.");
+  assert.deepEqual(await categoryRows(), ["Nothing spent this month."]);
+
+  // Fixing the amount saves it and clears the error.
+  await setCategoryBudget("Food", "60");
+  assert.equal(await text("#category-budget-error"), "");
+  assert.deepEqual(await categoryRows(), ["Food $0.00 of $60.00"]);
+});
+
+test("R17 (browser): category budgets are still there after reloading the page", async () => {
+  await setCategoryBudget("Food", "100");
+  await setCategoryBudget("Transport", "40");
+  await removeCategoryBudget("Transport");
+  await setCategoryBudget("Other", "0");
+
+  await page.reload();
+
+  assert.deepEqual(await categoryRows(), ["Food $0.00 of $100.00", "Other $0.00 of $0.00"]);
+  assert.equal(await page.inputValue("#category-budget-category"), "Food");
+  assert.equal(await page.inputValue("#category-budget"), "100");
+});
+
+test("R17 (browser): category budgets are separate from the overall monthly budget", async () => {
+  await setBudget("500");
+  await addExpense("Groceries", "45.20", "Food", await today());
+  await setCategoryBudget("Food", "20");
+
+  // Food is over its own budget, but the overall budget is not affected.
+  assert.equal(await text("#remaining"), "$454.80 of $500.00");
+  assert.equal(await page.$eval("#remaining", (el) => el.classList.contains("over")), false);
+
+  // Changing the overall budget does not change the category budget.
+  await setBudget("50");
+  assert.deepEqual(await categoryRows(), ["Food $45.20 of $20.00 Over by $25.20"]);
+});
+
+test("R18 (browser): a category over its budget is shown in red with the amount it is over by", async () => {
+  const date = await today();
+  await setCategoryBudget("Food", "100");
+  await setCategoryBudget("Transport", "50");
+  await addExpense("Groceries", "80", "Food", date);
+  await addExpense("Dinner", "40", "Food", date);
+  await addExpense("Bus pass", "30", "Transport", date);
+
+  assert.deepEqual(await categoryRows(), [
+    "Food $120.00 of $100.00 Over by $20.00",
+    "Transport $30.00 of $50.00",
+  ]);
+  assert.deepEqual(await overRows(), ["Food $120.00 of $100.00 Over by $20.00"]);
+  const overColor = await page.$eval("#category-list li.over", (li) => getComputedStyle(li).color);
+  assert.equal(overColor, "rgb(198, 40, 40)");
+  const normalColor = await page.$eval("#category-list li:not(.over)", (li) => getComputedStyle(li).color);
+  assert.notEqual(normalColor, "rgb(198, 40, 40)");
+});
+
+test("R18 (browser): spending exactly at the budget, or with no budget, is not over", async () => {
+  const date = await today();
+  await setCategoryBudget("Food", "50");
+  await addExpense("Groceries", "50", "Food", date);
+  await addExpense("Big shop", "900", "Shopping", date);
+
+  assert.deepEqual(await categoryRows(), ["Food $50.00 of $50.00", "Shopping $900.00 (no budget)"]);
+  assert.deepEqual(await overRows(), []);
+});
+
+test("R18 (browser): the over-budget warning updates after adding, editing, deleting, and changing the budget", async () => {
+  const date = await today();
+  await setCategoryBudget("Food", "50");
+  await addExpense("Groceries", "45", "Food", date);
+  assert.deepEqual(await overRows(), []);
+
+  await addExpense("Snack", "10", "Food", date);
+  assert.deepEqual(await overRows(), ["Food $55.00 of $50.00 Over by $5.00"]);
+
+  // Moving the snack to another category takes Food back under budget.
+  await startEditing("Snack");
+  await fillExpenseForm("Snack", "10", "Other", date);
+  await page.click("#expense-form button[type=submit]");
+  assert.deepEqual(await overRows(), []);
+
+  // A big amount moved into last month does not count against this month.
+  await startEditing("Groceries");
+  await fillExpenseForm("Groceries", "200", "Food", lastMonthDate(date));
+  await page.click("#expense-form button[type=submit]");
+  assert.deepEqual(await overRows(), []);
+
+  await addExpense("Dinner", "60", "Food", date);
+  assert.deepEqual(await overRows(), ["Food $60.00 of $50.00 Over by $10.00"]);
+
+  await setCategoryBudget("Food", "70");
+  assert.deepEqual(await overRows(), []);
+
+  await setCategoryBudget("Food", "30");
+  assert.deepEqual(await overRows(), ["Food $60.00 of $30.00 Over by $30.00"]);
+  await rowWith("Dinner").locator("button.delete").click();
+  assert.deepEqual(await overRows(), []);
+  assert.deepEqual(await categoryRows(), ["Food $0.00 of $30.00", "Other $10.00 (no budget)"]);
+});
+
+test("R18 (browser): the over-budget warning is still shown after reloading the page", async () => {
+  await setCategoryBudget("Food", "10");
+  await addExpense("Groceries", "45.20", "Food", await today());
+  await page.reload();
+  assert.deepEqual(await overRows(), ["Food $45.20 of $10.00 Over by $35.20"]);
+});
+
+test("R18 (browser): the list filters do not change the category box", async () => {
+  const date = await today();
+  await setCategoryBudget("Food", "10");
+  await addExpense("Groceries", "45.20", "Food", date);
+  await addExpense("Bus pass", "30", "Transport", date);
+  await page.selectOption("#filter-category", "Transport");
+
+  assert.deepEqual(await overRows(), ["Food $45.20 of $10.00 Over by $35.20"]);
+});
+
 // ---------- Layout ----------
+
+test("Layout (browser): the category budget form and an over-budget row fit on a phone-sized screen", async () => {
+  await page.setViewportSize({ width: 375, height: 800 });
+  await setCategoryBudget("Entertainment", "1000");
+  await addExpense("A long expense name for testing", "123456.78", "Entertainment", await today());
+
+  const selectors = [
+    "#category-budget-category",
+    "#category-budget",
+    "#category-budget-form button[type=submit]",
+    "#remove-category-budget",
+    "#category-list li.over",
+  ];
+  for (const selector of selectors) {
+    const box = await page.locator(selector).boundingBox();
+    assert.ok(box.x >= 0 && box.x + box.width <= 375, selector + " is at x=" + box.x + ", width " + box.width);
+  }
+  const pageWidth = await page.evaluate(() => document.documentElement.scrollWidth);
+  assert.ok(pageWidth <= 375, "page is " + pageWidth + "px wide");
+});
 
 test("Layout (browser): the filters fit on a phone-sized screen", async () => {
   await page.setViewportSize({ width: 375, height: 800 });
