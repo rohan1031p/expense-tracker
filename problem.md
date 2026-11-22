@@ -28,3 +28,9 @@ Many people have trouble keeping track of how much money they spend each month. 
 - R14: The user can filter expenses by category.
 - R15: The user can filter expenses by month.
 - R16: The user can clear the filters and see all expenses again.
+
+## Round 4 requirements
+
+- R5 (changed): The app shows spending in each category compared to that category's budget.
+- R17: The user can set a separate monthly budget for each expense category.
+- R18: The user can see when spending in a category goes over its budget.
