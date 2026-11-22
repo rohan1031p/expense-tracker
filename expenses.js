@@ -15,6 +15,7 @@ const CATEGORIES = [
 
 const EXPENSES_KEY = "expenses";
 const BUDGET_KEY = "monthlyBudget";
+const CATEGORY_BUDGETS_KEY = "categoryBudgets";
 
 // Round a number to 2 decimal places (cents) to avoid results like 0.30000000000000004.
 function roundMoney(value) {
@@ -107,6 +108,7 @@ function getTotal(expenses) {
 }
 
 // R5: Total spent in each category, e.g. { Food: 12.5, Transport: 3 }.
+// getCategorySummary uses this on one month's expenses.
 // Only categories that have at least one expense are included.
 function getTotalsByCategory(expenses) {
   const totals = {};
@@ -178,6 +180,53 @@ function getRemainingBudget(budget, expenses, month) {
   return roundMoney(budget - getMonthTotal(expenses, month));
 }
 
+// R17: Return a new budgets object with this category's monthly budget set.
+// budgets looks like { Food: 100, Transport: 40 }.
+// Throws an Error if the category is not in the list or the amount is invalid.
+function setCategoryBudget(budgets, category, value) {
+  if (!CATEGORIES.includes(category)) {
+    throw new Error("Please choose a category.");
+  }
+  const amount = parseBudget(value);
+  return { ...budgets, [category]: amount };
+}
+
+// R17: Return a new budgets object without this category's budget.
+function removeCategoryBudget(budgets, category) {
+  const copy = { ...budgets };
+  delete copy[category];
+  return copy;
+}
+
+// R5, R17, R18: Compare each category's spending in one month with its budget.
+// month looks like "2026-11". Returns a list in the fixed category order, e.g.
+// [{ category: "Food", spent: 120, budget: 100, over: true, overBy: 20 }].
+// A category is included if it has spending that month or a budget.
+// budget is null when the category has no budget.
+// over is true only when spending is more than the budget.
+function getCategorySummary(expenses, budgets, month) {
+  const inMonth = expenses.filter((expense) => getMonth(expense.date) === month);
+  const totals = getTotalsByCategory(inMonth);
+  const summary = [];
+
+  for (const category of CATEGORIES) {
+    const spent = totals[category] || 0;
+    const budget = budgets[category] === undefined ? null : budgets[category];
+    if (totals[category] === undefined && budget === null) {
+      continue;
+    }
+    const over = budget !== null && spent > budget;
+    summary.push({
+      category: category,
+      spent: spent,
+      budget: budget,
+      over: over,
+      overBy: over ? roundMoney(spent - budget) : 0,
+    });
+  }
+  return summary;
+}
+
 // R8: Save the expense list. storage is window.localStorage in the browser.
 function saveExpenses(storage, expenses) {
   storage.setItem(EXPENSES_KEY, JSON.stringify(expenses));
@@ -213,6 +262,37 @@ function loadBudget(storage) {
   return Number.isFinite(budget) ? budget : null;
 }
 
+// R17: Save the category budgets so they are still set after reloading the page.
+function saveCategoryBudgets(storage, budgets) {
+  storage.setItem(CATEGORY_BUDGETS_KEY, JSON.stringify(budgets));
+}
+
+// R17: Load the category budgets. Returns {} if nothing is saved or the data is broken.
+// Unknown categories and invalid amounts are left out.
+function loadCategoryBudgets(storage) {
+  const saved = storage.getItem(CATEGORY_BUDGETS_KEY);
+  if (!saved) {
+    return {};
+  }
+  let parsed;
+  try {
+    parsed = JSON.parse(saved);
+  } catch (error) {
+    return {};
+  }
+  if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
+    return {};
+  }
+  const budgets = {};
+  for (const category of CATEGORIES) {
+    const value = parsed[category];
+    if (typeof value === "number" && Number.isFinite(value) && value >= 0) {
+      budgets[category] = value;
+    }
+  }
+  return budgets;
+}
+
 // Let Node.js tests use these functions. In the browser they are global.
 if (typeof module !== "undefined") {
   module.exports = {
@@ -235,5 +315,10 @@ if (typeof module !== "undefined") {
     loadExpenses,
     saveBudget,
     loadBudget,
+    setCategoryBudget,
+    removeCategoryBudget,
+    getCategorySummary,
+    saveCategoryBudgets,
+    loadCategoryBudgets,
   };
 }
