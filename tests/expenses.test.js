@@ -311,3 +311,63 @@ test("R13: an unknown category or empty date is rejected, as for new expenses", 
   assert.throws(() => app.updateExpense(sampleList(), "a", "Lunch", 5, "Nope", "2026-11-05"), /category/);
   assert.throws(() => app.updateExpense(sampleList(), "a", "Lunch", 5, "Food", ""), /date/);
 });
+
+// ---------- R14-R16: Filter expenses ----------
+
+function filterList() {
+  return [
+    sampleExpense("a", 10, "Food", "2026-11-05"),
+    sampleExpense("b", 20, "Transport", "2026-11-10"),
+    sampleExpense("c", 30, "Food", "2026-10-15"),
+    sampleExpense("d", 40, "Shopping", "2025-11-20"),
+  ];
+}
+
+function ids(list) {
+  return list.map((e) => e.id);
+}
+
+test("R14: filterExpenses by category keeps only that category", () => {
+  assert.deepEqual(ids(app.filterExpenses(filterList(), "Food", "")), ["a", "c"]);
+  assert.deepEqual(ids(app.filterExpenses(filterList(), "Shopping", "")), ["d"]);
+});
+
+test("R14: a category with no expenses gives an empty list", () => {
+  assert.deepEqual(app.filterExpenses(filterList(), "Health", ""), []);
+});
+
+test("R14: filterExpenses does not change the original list", () => {
+  const list = filterList();
+  app.filterExpenses(list, "Food", "2026-11");
+  assert.deepEqual(list, filterList());
+});
+
+test("R15: filterExpenses by month keeps only expenses in that month and year", () => {
+  // d is in November too, but of 2025, so it must not be included.
+  assert.deepEqual(ids(app.filterExpenses(filterList(), "", "2026-11")), ["a", "b"]);
+  assert.deepEqual(ids(app.filterExpenses(filterList(), "", "2025-11")), ["d"]);
+});
+
+test("R14, R15: with both filters, an expense must match both", () => {
+  assert.deepEqual(ids(app.filterExpenses(filterList(), "Food", "2026-11")), ["a"]);
+  assert.deepEqual(app.filterExpenses(filterList(), "Shopping", "2026-11"), []);
+});
+
+test("R15: getMonthsWithExpenses lists each month once, newest first", () => {
+  const list = [...filterList(), sampleExpense("e", 5, "Other", "2026-11-28")];
+  assert.deepEqual(app.getMonthsWithExpenses(list), ["2026-11", "2026-10", "2025-11"]);
+});
+
+test("R15: getMonthsWithExpenses is empty when there are no expenses", () => {
+  assert.deepEqual(app.getMonthsWithExpenses([]), []);
+});
+
+test("R15: formatMonth shows a month like 'November 2026'", () => {
+  assert.equal(app.formatMonth("2026-11"), "November 2026");
+  assert.equal(app.formatMonth("2027-01"), "January 2027");
+  assert.equal(app.formatMonth("2025-12"), "December 2025");
+});
+
+test("R16: with no filters (empty values), every expense is kept", () => {
+  assert.deepEqual(ids(app.filterExpenses(filterList(), "", "")), ["a", "b", "c", "d"]);
+});

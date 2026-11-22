@@ -426,7 +426,184 @@ test("R13 (browser): after an error, fixing the value and saving works", async (
   assert.equal(await rowCount(), 1);
 });
 
+// ---------- R14-R16: Filter expenses ----------
+
+// The names in the list, from top to bottom.
+async function listedNames() {
+  return page.$$eval("#expense-list tr td:nth-child(2)", (tds) => tds.map((td) => td.textContent));
+}
+
+async function optionLabels(selector) {
+  return page.$$eval(selector + " option", (options) => options.map((o) => o.textContent));
+}
+
+// The label the page shows for the month of a date, e.g. "November 2026".
+async function monthLabel(date) {
+  return page.evaluate((d) => formatMonth(getMonth(d)), date);
+}
+
+// Adds expenses in this month and last month, in two categories. Returns today's date.
+async function addFilterExamples() {
+  const date = await today();
+  await addExpense("Groceries", "45.20", "Food", date);
+  await addExpense("Bus pass", "30", "Transport", date);
+  await addExpense("Old lunch", "12", "Food", lastMonthDate(date));
+  return date;
+}
+
+test("R14 (browser): choosing a category shows only that category's expenses", async () => {
+  await addFilterExamples();
+  assert.equal(await page.inputValue("#filter-category"), "");
+  assert.deepEqual(await optionLabels("#filter-category"), [
+    "All categories", "Food", "Transport", "Housing", "Utilities", "Entertainment", "Health", "Shopping", "Other",
+  ]);
+
+  await page.selectOption("#filter-category", "Food");
+  assert.deepEqual(await listedNames(), ["Groceries", "Old lunch"]);
+
+  await page.selectOption("#filter-category", "Transport");
+  assert.deepEqual(await listedNames(), ["Bus pass"]);
+});
+
+test("R14 (browser): the filter changes only the list, not the totals or budget", async () => {
+  await setBudget("100");
+  await addFilterExamples();
+  await page.selectOption("#filter-category", "Transport");
+
+  assert.equal(await text("#total"), "$87.20");
+  assert.equal(await text("#month-total"), "$75.20");
+  assert.equal(await text("#remaining"), "$24.80 of $100.00");
+  const items = await page.$$eval("#category-list li", (lis) =>
+    lis.map((li) => li.innerText.replace(/\s+/g, " ").trim())
+  );
+  assert.deepEqual(items, ["Food $57.20", "Transport $30.00"]);
+});
+
+test("R14 (browser): a category with no expenses shows a 'no matches' message", async () => {
+  await addFilterExamples();
+  await page.selectOption("#filter-category", "Health");
+
+  assert.equal(await page.isVisible("#expense-table"), false);
+  assert.equal(await page.isVisible("#empty-message"), true);
+  assert.equal(await text("#empty-message"), "No expenses match the filters.");
+});
+
+test("R14 (browser): with no expenses at all, the message still says 'No expenses yet.'", async () => {
+  await page.selectOption("#filter-category", "Food");
+  assert.equal(await text("#empty-message"), "No expenses yet.");
+});
+
+test("R14 (browser): an edited expense that no longer matches leaves the filtered list but is kept", async () => {
+  await addFilterExamples();
+  await page.selectOption("#filter-category", "Food");
+  await startEditing("Groceries");
+  await page.selectOption("#category", "Shopping");
+  await page.click("#expense-form button[type=submit]");
+
+  assert.deepEqual(await listedNames(), ["Old lunch"]);
+  assert.equal(await page.inputValue("#filter-category"), "Food");
+  await page.selectOption("#filter-category", "Shopping");
+  assert.deepEqual(await listedNames(), ["Groceries"]);
+});
+
+test("R15 (browser): the month filter lists months that have expenses, newest first", async () => {
+  const date = await addFilterExamples();
+  assert.equal(await page.inputValue("#filter-month"), "");
+  assert.deepEqual(await optionLabels("#filter-month"), [
+    "All months", await monthLabel(date), await monthLabel(lastMonthDate(date)),
+  ]);
+});
+
+test("R15 (browser): choosing a month shows only that month's expenses", async () => {
+  const date = await addFilterExamples();
+
+  await page.selectOption("#filter-month", lastMonthDate(date).slice(0, 7));
+  assert.deepEqual(await listedNames(), ["Old lunch"]);
+
+  await page.selectOption("#filter-month", date.slice(0, 7));
+  assert.deepEqual(await listedNames(), ["Groceries", "Bus pass"]);
+});
+
+test("R15 (browser): category and month filters together show only expenses matching both", async () => {
+  const date = await addFilterExamples();
+  await page.selectOption("#filter-category", "Food");
+  await page.selectOption("#filter-month", date.slice(0, 7));
+  assert.deepEqual(await listedNames(), ["Groceries"]);
+});
+
+test("R15 (browser): the month list updates when expenses are added, edited, or deleted", async () => {
+  const date = await today();
+  await addExpense("Groceries", "45.20", "Food", date);
+  assert.deepEqual(await optionLabels("#filter-month"), ["All months", await monthLabel(date)]);
+
+  await addExpense("Concert", "80", "Entertainment", "2025-03-09");
+  assert.equal((await optionLabels("#filter-month")).includes("March 2025"), true);
+
+  await startEditing("Concert");
+  await page.fill("#date", "2025-04-01");
+  await page.click("#expense-form button[type=submit]");
+  const afterEdit = await optionLabels("#filter-month");
+  assert.equal(afterEdit.includes("March 2025"), false);
+  assert.equal(afterEdit.includes("April 2025"), true);
+
+  await rowWith("Concert").locator("button.delete").click();
+  assert.equal((await optionLabels("#filter-month")).includes("April 2025"), false);
+});
+
+test("R15 (browser): if the chosen month has no expenses left, the filter goes back to all months", async () => {
+  const date = await addFilterExamples();
+  await page.selectOption("#filter-month", lastMonthDate(date).slice(0, 7));
+  await rowWith("Old lunch").locator("button.delete").click();
+
+  assert.equal(await page.inputValue("#filter-month"), "");
+  assert.deepEqual(await listedNames(), ["Groceries", "Bus pass"]);
+});
+
+test("R16 (browser): Clear filters shows all expenses again", async () => {
+  const date = await addFilterExamples();
+  await page.selectOption("#filter-category", "Food");
+  await page.selectOption("#filter-month", date.slice(0, 7));
+  assert.deepEqual(await listedNames(), ["Groceries"]);
+
+  await page.click("#clear-filters");
+
+  assert.equal(await page.inputValue("#filter-category"), "");
+  assert.equal(await page.inputValue("#filter-month"), "");
+  assert.deepEqual(await listedNames(), ["Groceries", "Bus pass", "Old lunch"]);
+});
+
+test("R16 (browser): Clear filters hides the 'no matches' message", async () => {
+  await addFilterExamples();
+  await page.selectOption("#filter-category", "Health");
+  await page.click("#clear-filters");
+
+  assert.equal(await page.isVisible("#empty-message"), false);
+  assert.equal(await rowCount(), 3);
+});
+
+test("R16 (browser): filters are not saved, so after a reload all expenses are shown", async () => {
+  await addFilterExamples();
+  await page.selectOption("#filter-category", "Transport");
+  await page.reload();
+
+  assert.equal(await page.inputValue("#filter-category"), "");
+  assert.equal(await page.inputValue("#filter-month"), "");
+  assert.equal(await rowCount(), 3);
+});
+
 // ---------- Layout ----------
+
+test("Layout (browser): the filters fit on a phone-sized screen", async () => {
+  await page.setViewportSize({ width: 375, height: 800 });
+  await addExpense("A long expense name for testing", "1234.56", "Entertainment", await today());
+
+  for (const selector of ["#filter-category", "#filter-month", "#clear-filters"]) {
+    const box = await page.locator(selector).boundingBox();
+    assert.ok(box.x >= 0 && box.x + box.width <= 375, selector + " is at x=" + box.x);
+  }
+  const pageWidth = await page.evaluate(() => document.documentElement.scrollWidth);
+  assert.ok(pageWidth <= 375, "page is " + pageWidth + "px wide");
+});
 
 test("Layout (browser): the page does not scroll sideways on a phone-sized screen", async () => {
   await page.setViewportSize({ width: 375, height: 800 });
