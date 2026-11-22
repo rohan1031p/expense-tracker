@@ -128,6 +128,42 @@ function getMonthTotal(expenses, month) {
   return getTotal(inMonth);
 }
 
+// R14, R15: Return only the expenses that match the filters.
+// category is a category name, or "" for all categories.
+// month looks like "2026-11", or "" for all months.
+// When both are set, an expense must match both.
+function filterExpenses(expenses, category, month) {
+  return expenses.filter((expense) => {
+    const categoryMatches = category === "" || expense.category === category;
+    const monthMatches = month === "" || getMonth(expense.date) === month;
+    return categoryMatches && monthMatches;
+  });
+}
+
+// R15: The months that have at least one expense, each listed once, newest first.
+// For example: ["2026-11", "2026-10"].
+function getMonthsWithExpenses(expenses) {
+  const months = [];
+  for (const expense of expenses) {
+    const month = getMonth(expense.date);
+    if (!months.includes(month)) {
+      months.push(month);
+    }
+  }
+  return months.sort().reverse();
+}
+
+const MONTH_NAMES = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
+];
+
+// R15: Show a month like "2026-11" as "November 2026".
+function formatMonth(month) {
+  const [year, monthNumber] = month.split("-");
+  return MONTH_NAMES[Number(monthNumber) - 1] + " " + year;
+}
+
 // R6: Check a budget value and return it as a number. Throws an Error if invalid.
 function parseBudget(value) {
   const budget = Number(value);
@@ -190,6 +226,9 @@ if (typeof module !== "undefined") {
     getTotalsByCategory,
     getMonth,
     getMonthTotal,
+    filterExpenses,
+    getMonthsWithExpenses,
+    formatMonth,
     parseBudget,
     getRemainingBudget,
     saveExpenses,
