@@ -31,9 +31,9 @@ The app displays the total amount spent across all expenses. It also displays th
 The "Spending by category (this month)" box shows, for each category, how much was spent **in the current calendar month** next to that category's monthly budget (R17). Category budgets are monthly, so spending from earlier months is not counted here (see decision 0006). All-time totals per category are no longer shown; "Total spent" (R4) still covers all expenses.
 
 - A category is listed if it has spending this month **or** a budget. Categories are listed in the fixed order from R1.
-- With a budget, the row reads like "Food $45.20 of $100.00".
+- With a budget, the row reads like "Food $45.20 of $100.00 $54.80 left" (the "left" amount is R22).
 - Without a budget, the row reads like "Food $45.20 (no budget)".
-- A category with a budget but nothing spent this month reads like "Food $0.00 of $100.00".
+- A category with a budget but nothing spent this month reads like "Food $0.00 of $100.00 $100.00 left".
 - If nothing is listed, the box shows "Nothing spent this month."
 - Like the other totals, the box uses all expenses and ignores the list filters (decision 0004).
 
@@ -125,6 +125,28 @@ While an expense is being edited (R9), its row in the list is highlighted with a
 - If the expense being edited is hidden by a filter, nothing is highlighted; when it is shown again it is still highlighted.
 - Edit mode is not saved, so after a reload nothing is highlighted.
 
+### R21: Export expenses to a CSV file
+The Expenses section has an "Export all expenses (CSV)" button below the list. Clicking it downloads a file called `expenses.csv` that a spreadsheet program can open.
+
+- The file always has **every saved expense**, even when a filter is on (chosen by the user; filters change only the list, decision 0004).
+- The first line is the header `Date,Name,Category,Amount`. Then there is one line per expense, newest date first, like the list.
+- Amounts are plain numbers with two decimals and no `$` sign, for example `12.50`, so a spreadsheet can add them up (chosen by the user). Dates are written as `YYYY-MM-DD`.
+- A value that contains a comma, a double quote or a line break is put in double quotes, and any double quote inside it is written twice (the usual CSV rule). For example, the name `Bus, "return"` is written as `"Bus, ""return"""`.
+- Lines end with CRLF (`\r\n`), the usual CSV line ending.
+- The file is saved as UTF-8 and starts with a byte order mark (BOM), so spreadsheet programs such as Excel show names with letters like "é" correctly.
+- With no expenses, the button still works and the file has only the header line.
+- Names are written exactly as they were typed. Nothing is changed in a name that starts with `=`, `+`, `-` or `@`.
+- Exporting does not change anything on the page or in Local Storage.
+
+### R22: Budget left in each category this month
+In the "Spending by category (this month)" box, each category with a budget that is **not** over it shows how much of that budget is left this month, at the end of its row, for example "Food $45.20 of $100.00 $54.80 left" (place chosen by the user).
+
+- Left = the category's budget minus its spending this month (the same month as R5).
+- Spending exactly equal to the budget shows "$0.00 left".
+- A category over its budget (R18) does **not** show a "left" amount; its row stays "Food $120.00 of $100.00 Over by $20.00" (chosen by the user).
+- A category without a budget shows no "left" amount ("Food $45.20 (no budget)").
+- The amount updates straight away when expenses are added, edited or deleted, and when a category budget is set or removed. Like the rest of the box, it ignores the list filters (decision 0004).
+
 ## Running the app
 
 The app should run locally with:
@@ -139,14 +161,14 @@ Automated tests should run with:
 
 `npm test`
 
-Tests should check the expense logic, including adding, editing, deleting, filtering, totals, category spending, category budgets, and budget calculations.
+Tests should check the expense logic, including adding, editing, deleting, filtering, totals, category spending, category budgets, budget calculations, and the CSV export.
 
 Browser tests also open the real page and check every requirement through the forms and buttons, including that data is still there after a reload (R8) and that the page does not scroll sideways on a phone-sized screen.
 
 ## Implementation
 
-- `expenses.js`: expense logic (adding, editing, deleting, filtering, totals) and Local Storage saving, with no page code, so it can be tested in Node. Adding and editing share one set of checks (`checkExpenseValues`). Filtering uses `filterExpenses`, `getMonthsWithExpenses`, and `formatMonth`. Category budgets are a plain object such as `{ Food: 100 }`, changed with `setCategoryBudget` and `removeCategoryBudget`, saved with `saveCategoryBudgets` and `loadCategoryBudgets`, and compared with spending by `getCategorySummary`. The R19 count line is decided by `isFilterOn` and worded by `formatShownCount`.
-- `app.js`: connects the page to the logic. Editing reuses the add form; `editingId` remembers which expense is being edited (see decision 0003). The filters are read from the two drop-downs each time the list is drawn, so there is no separate filter state to keep in sync. The list drawing code gives the row whose id is `editingId` the class `editing` (R20), and the list is drawn again when editing starts or stops, so the highlight always follows `editingId`.
+- `expenses.js`: expense logic (adding, editing, deleting, filtering, totals) and Local Storage saving, with no page code, so it can be tested in Node. Adding and editing share one set of checks (`checkExpenseValues`). Filtering uses `filterExpenses`, `getMonthsWithExpenses`, and `formatMonth`. Category budgets are a plain object such as `{ Food: 100 }`, changed with `setCategoryBudget` and `removeCategoryBudget`, saved with `saveCategoryBudgets` and `loadCategoryBudgets`, and compared with spending by `getCategorySummary`. Each row of that summary also has `left`, the budget left this month (R22), which is `null` when the category has no budget or is over it. `expensesToCsv` builds the text of the CSV file (R21). The R19 count line is decided by `isFilterOn` and worded by `formatShownCount`.
+- `app.js`: connects the page to the logic. Editing reuses the add form; `editingId` remembers which expense is being edited (see decision 0003). The filters are read from the two drop-downs each time the list is drawn, so there is no separate filter state to keep in sync. The list drawing code gives the row whose id is `editingId` the class `editing` (R20), and the list is drawn again when editing starts or stops, so the highlight always follows `editingId`. The R21 export button puts the CSV text (with a BOM) in a `Blob` and downloads it through a temporary link with the `download` attribute, so no server is needed.
 - `server.js`: local server for `npm start`, using only built-in Node modules.
 - `tests/expenses.test.js`: logic tests; each test names the requirement it checks.
 - `tests/browser.test.js`: browser tests of the real page; each test names the requirement it checks.
