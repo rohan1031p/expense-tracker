@@ -204,6 +204,15 @@ function renderCategoryTotals() {
       amount.appendChild(document.createTextNode(" "));
       amount.appendChild(overBy);
     }
+
+    // R22: A category with a budget that it is not over shows how much is left.
+    if (row.left !== null) {
+      const left = document.createElement("span");
+      left.className = "budget-left";
+      left.textContent = formatMoney(row.left) + " left";
+      amount.appendChild(document.createTextNode(" "));
+      amount.appendChild(left);
+    }
     list.appendChild(item);
   }
 

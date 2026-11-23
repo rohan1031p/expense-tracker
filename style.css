@@ -204,6 +204,11 @@ td.actions button + button {
   font-weight: 600;
 }
 
+/* R22: "$54.80 left" is grey, so it stands apart from the amounts before it. */
+.budget-left {
+  color: #666;
+}
+
 /* R17: The category budget form below the category list. */
 .category-budget-form {
   margin-top: 16px;
