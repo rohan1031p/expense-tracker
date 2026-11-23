@@ -78,6 +78,8 @@ function startEditing(expense) {
   document.querySelector("#expense-form button[type=submit]").textContent = "Save changes";
   document.getElementById("cancel-edit").hidden = false;
   document.getElementById("expense-error").textContent = "";
+  // R20: Draw the list again so this expense's row is highlighted.
+  renderExpenseList();
   document.getElementById("expense-form-card").scrollIntoView();
   document.getElementById("name").focus();
 }
@@ -92,6 +94,8 @@ function stopEditing() {
   document.querySelector("#expense-form button[type=submit]").textContent = "Add expense";
   document.getElementById("cancel-edit").hidden = true;
   document.getElementById("expense-error").textContent = "";
+  // R20: Draw the list again so no row is highlighted.
+  renderExpenseList();
 }
 
 // R2, R3, R9: Draw the list of expenses with Edit and Delete buttons on each row.
@@ -106,6 +110,10 @@ function renderExpenseList() {
 
   for (const expense of sortByDateNewestFirst(shown)) {
     const row = document.createElement("tr");
+    // R20: Highlight the expense that is being edited.
+    if (expense.id === editingId) {
+      row.className = "editing";
+    }
 
     // textContent is used so names are shown as plain text, never as HTML.
     const cells = [expense.date, expense.name, expense.category, formatMoney(expense.amount)];

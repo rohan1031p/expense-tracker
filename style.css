@@ -162,6 +162,16 @@ td.actions button + button {
   color: #666;
 }
 
+/* R20: The expense being edited has a light blue background
+   and a blue bar on its left edge. */
+#expense-list tr.editing {
+  background: #e3f2fd;
+}
+
+#expense-list tr.editing td:first-child {
+  box-shadow: inset 4px 0 0 #1565c0;
+}
+
 .error {
   color: #c62828;
   min-height: 1.2em;
@@ -265,5 +275,15 @@ td {
 
   #expense-table td.actions::before {
     content: none;
+  }
+
+  /* R20: On a card, the blue bar is the card's left border instead. */
+  #expense-list tr.editing {
+    border-color: #1565c0;
+    border-left-width: 4px;
+  }
+
+  #expense-list tr.editing td:first-child {
+    box-shadow: none;
   }
 }
