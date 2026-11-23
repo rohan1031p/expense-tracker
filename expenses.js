@@ -308,6 +308,28 @@ function formatShownCount(shown, total) {
   return "Showing " + shown + " of " + total + " " + word;
 }
 
+// R21: Write one value for a CSV file. A value with a comma, a double quote or a
+// line break is put in double quotes, and each double quote inside it is written twice.
+function csvValue(value) {
+  const text = String(value);
+  if (/[",\r\n]/.test(text)) {
+    return '"' + text.replace(/"/g, '""') + '"';
+  }
+  return text;
+}
+
+// R21: The text of a CSV file with every expense, newest date first, e.g.
+// "Date,Name,Category,Amount\r\n2026-11-20,Lunch,Food,12.50\r\n".
+// Amounts are plain numbers with two decimals so a spreadsheet can add them up.
+function expensesToCsv(expenses) {
+  const lines = ["Date,Name,Category,Amount"];
+  for (const expense of sortByDateNewestFirst(expenses)) {
+    const values = [expense.date, expense.name, expense.category, expense.amount.toFixed(2)];
+    lines.push(values.map(csvValue).join(","));
+  }
+  return lines.join("\r\n") + "\r\n";
+}
+
 // Let Node.js tests use these functions. In the browser they are global.
 if (typeof module !== "undefined") {
   module.exports = {
@@ -337,5 +359,6 @@ if (typeof module !== "undefined") {
     getCategorySummary,
     saveCategoryBudgets,
     loadCategoryBudgets,
+    expensesToCsv,
   };
 }
