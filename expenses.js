@@ -200,10 +200,12 @@ function removeCategoryBudget(budgets, category) {
 
 // R5, R17, R18: Compare each category's spending in one month with its budget.
 // month looks like "2026-11". Returns a list in the fixed category order, e.g.
-// [{ category: "Food", spent: 120, budget: 100, over: true, overBy: 20 }].
+// [{ category: "Food", spent: 120, budget: 100, over: true, overBy: 20, left: null }].
 // A category is included if it has spending that month or a budget.
 // budget is null when the category has no budget.
 // over is true only when spending is more than the budget.
+// R22: left is how much of the budget is left that month. It is null when the
+// category has no budget or is over it (then overBy is shown instead).
 function getCategorySummary(expenses, budgets, month) {
   const inMonth = expenses.filter((expense) => getMonth(expense.date) === month);
   const totals = getTotalsByCategory(inMonth);
@@ -222,6 +224,7 @@ function getCategorySummary(expenses, budgets, month) {
       budget: budget,
       over: over,
       overBy: over ? roundMoney(spent - budget) : 0,
+      left: budget !== null && !over ? roundMoney(budget - spent) : null,
     });
   }
   return summary;
