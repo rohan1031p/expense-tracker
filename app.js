@@ -157,6 +157,12 @@ function renderExpenseList() {
   const isEmpty = shown.length === 0;
   emptyMessage.hidden = !isEmpty;
   document.getElementById("expense-table").hidden = isEmpty;
+
+  // R19: While a filter is on, show how many expenses are shown out of all of them.
+  // With no expenses at all, "No expenses yet." is enough on its own.
+  const count = document.getElementById("filter-count");
+  count.textContent = formatShownCount(shown.length, expenses.length);
+  count.hidden = !isFilterOn(category, month) || expenses.length === 0;
 }
 
 // R5, R18: Draw this month's spending in each category next to its budget.

@@ -155,6 +155,13 @@ td.actions button + button {
   font-size: 0.9rem;
 }
 
+/* R19: "Showing 2 of 5 expenses" under the filters. */
+#filter-count {
+  margin: 0 0 8px;
+  font-size: 0.9rem;
+  color: #666;
+}
+
 .error {
   color: #c62828;
   min-height: 1.2em;
