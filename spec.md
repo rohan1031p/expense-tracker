@@ -107,6 +107,24 @@ The "Spending by category (this month)" box has a form with a Category drop-down
 ### R18: Show when a category is over its budget
 A category is over budget when its spending this month is **more than** its budget (spending exactly equal to the budget is not over). An over-budget row is shown in red and ends with "Over by" and the amount, for example "Food $120.00 of $100.00 Over by $20.00". The row updates straight away when expenses are added, edited or deleted, or when the budget changes. A category with no budget is never over budget.
 
+### R19: Count of shown expenses when a filter is on
+When at least one filter is on (the Category filter is not "All categories", or the Month filter is not "All months"), a line between the filter row and the list shows how many expenses are shown out of all expenses, for example "Showing 2 of 5 expenses".
+
+- The total is the number of all saved expenses, not only those in the chosen month or category (filters change only the list, decision 0004).
+- If the total is 1, the word is singular: "Showing 1 of 1 expense". Otherwise it is "expenses", e.g. "Showing 0 of 5 expenses" or "Showing 1 of 5 expenses".
+- If no expenses match, the count is still shown ("Showing 0 of 5 expenses"), above the message "No expenses match the filters." (chosen by the user).
+- When no filter is on, the line is hidden. It is also hidden when there are no expenses at all, so "No expenses yet." is shown on its own.
+- The count updates straight away when a filter changes, when the filters are cleared (the line is hidden), and when an expense is added, edited or deleted.
+
+### R20: Highlight the expense being edited
+While an expense is being edited (R9), its row in the list is highlighted with a light blue background and a blue bar on its left edge. On narrow screens the whole card is highlighted the same way. The row's text and buttons do not change (chosen by the user).
+
+- Only the expense being edited is highlighted. Clicking Edit on another expense moves the highlight to that one.
+- The highlight is removed when the user leaves edit mode: after "Save changes", after Cancel, or when the expense being edited is deleted.
+- If a saved change is invalid (R13), the form stays in edit mode and the row stays highlighted.
+- If the expense being edited is hidden by a filter, nothing is highlighted; when it is shown again it is still highlighted.
+- Edit mode is not saved, so after a reload nothing is highlighted.
+
 ## Running the app
 
 The app should run locally with:
@@ -127,8 +145,8 @@ Browser tests also open the real page and check every requirement through the fo
 
 ## Implementation
 
-- `expenses.js`: expense logic (adding, editing, deleting, filtering, totals) and Local Storage saving, with no page code, so it can be tested in Node. Adding and editing share one set of checks (`checkExpenseValues`). Filtering uses `filterExpenses`, `getMonthsWithExpenses`, and `formatMonth`. Category budgets are a plain object such as `{ Food: 100 }`, changed with `setCategoryBudget` and `removeCategoryBudget`, saved with `saveCategoryBudgets` and `loadCategoryBudgets`, and compared with spending by `getCategorySummary`.
-- `app.js`: connects the page to the logic. Editing reuses the add form; `editingId` remembers which expense is being edited (see decision 0003). The filters are read from the two drop-downs each time the list is drawn, so there is no separate filter state to keep in sync.
+- `expenses.js`: expense logic (adding, editing, deleting, filtering, totals) and Local Storage saving, with no page code, so it can be tested in Node. Adding and editing share one set of checks (`checkExpenseValues`). Filtering uses `filterExpenses`, `getMonthsWithExpenses`, and `formatMonth`. Category budgets are a plain object such as `{ Food: 100 }`, changed with `setCategoryBudget` and `removeCategoryBudget`, saved with `saveCategoryBudgets` and `loadCategoryBudgets`, and compared with spending by `getCategorySummary`. The R19 count line is decided by `isFilterOn` and worded by `formatShownCount`.
+- `app.js`: connects the page to the logic. Editing reuses the add form; `editingId` remembers which expense is being edited (see decision 0003). The filters are read from the two drop-downs each time the list is drawn, so there is no separate filter state to keep in sync. The list drawing code gives the row whose id is `editingId` the class `editing` (R20), and the list is drawn again when editing starts or stops, so the highlight always follows `editingId`.
 - `server.js`: local server for `npm start`, using only built-in Node modules.
 - `tests/expenses.test.js`: logic tests; each test names the requirement it checks.
 - `tests/browser.test.js`: browser tests of the real page; each test names the requirement it checks.
