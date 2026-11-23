@@ -40,3 +40,8 @@ Many people have trouble keeping track of how much money they spend each month. 
 
 - R19: When a filter is on, the expense list shows how many expenses are shown out of the total (for example, "Showing 2 of 5 expenses").
 - R20: While an expense is being edited, its row in the list is highlighted so the user can see which one they are changing.
+
+## Round 6 requirements
+
+- R21: The user can export their expenses to a CSV file so they can open them in a spreadsheet.
+- R22: Each category with a budget shows how much of that budget is left this month (for example, "$54.80 left").
