@@ -293,6 +293,18 @@ function loadCategoryBudgets(storage) {
   return budgets;
 }
 
+// R19: A filter is on when either drop-down is not set to "All" (an empty value).
+function isFilterOn(category, month) {
+  return category !== "" || month !== "";
+}
+
+// R19: The count shown above a filtered list, e.g. "Showing 2 of 5 expenses".
+// The word is "expense" when there is only one expense in total.
+function formatShownCount(shown, total) {
+  const word = total === 1 ? "expense" : "expenses";
+  return "Showing " + shown + " of " + total + " " + word;
+}
+
 // Let Node.js tests use these functions. In the browser they are global.
 if (typeof module !== "undefined") {
   module.exports = {
@@ -309,6 +321,8 @@ if (typeof module !== "undefined") {
     filterExpenses,
     getMonthsWithExpenses,
     formatMonth,
+    isFilterOn,
+    formatShownCount,
     parseBudget,
     getRemainingBudget,
     saveExpenses,
