@@ -1,6 +1,6 @@
 # Expense Tracker
 
-A simple web app for tracking expenses and a monthly budget. You can add, edit, and delete expenses, filter the list by category and month (with a "Showing 2 of 5 expenses" count while a filter is on), and set a monthly budget for each category to see when a category goes over it. The expense you are editing is highlighted in the list. Everything runs locally in your browser and is saved in Local Storage.
+A simple web app for tracking expenses and a monthly budget. You can add, edit, and delete expenses, filter the list by category and month (with a "Showing 2 of 5 expenses" count while a filter is on), set a monthly budget for each category to see how much is left this month and when a category goes over it, and export all your expenses to a CSV file to open in a spreadsheet. The expense you are editing is highlighted in the list. Everything runs locally in your browser and is saved in Local Storage.
 
 ## Requirements
 
@@ -29,7 +29,7 @@ Then open http://localhost:3000 in your browser. To use a different port, set th
 npm test
 ```
 
-The tests use Node's built-in test runner. Each test name starts with the requirement ID (R1–R20) it checks. There are two kinds:
+The tests use Node's built-in test runner. Each test name starts with the requirement ID (R1–R22) it checks. There are two kinds:
 
 - `tests/expenses.test.js` checks the expense logic directly.
 - `tests/browser.test.js` opens the real page in a hidden Chrome (or Edge) window, fills in the forms, clicks buttons, and reloads the page, like a person would.
