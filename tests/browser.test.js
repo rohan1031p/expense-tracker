@@ -789,7 +789,261 @@ test("R18 (browser): the list filters do not change the category box", async () 
   assert.deepEqual(await overRows(), ["Food $45.20 of $10.00 Over by $35.20"]);
 });
 
+// ---------- R19: Count of shown expenses when a filter is on ----------
+
+test("R19 (browser): with no filter on, no count is shown", async () => {
+  await addFilterExamples();
+  assert.equal(await page.isVisible("#filter-count"), false);
+});
+
+test("R19 (browser): a category filter shows how many expenses are shown out of the total", async () => {
+  await addFilterExamples();
+  await page.selectOption("#filter-category", "Food");
+
+  assert.equal(await page.isVisible("#filter-count"), true);
+  assert.equal(await text("#filter-count"), "Showing 2 of 3 expenses");
+  assert.equal(await rowCount(), 2);
+});
+
+test("R19 (browser): a month filter, and both filters together, show the count", async () => {
+  const date = await addFilterExamples();
+  await page.selectOption("#filter-month", lastMonthDate(date).slice(0, 7));
+  assert.equal(await text("#filter-count"), "Showing 1 of 3 expenses");
+
+  await page.selectOption("#filter-month", date.slice(0, 7));
+  assert.equal(await text("#filter-count"), "Showing 2 of 3 expenses");
+
+  await page.selectOption("#filter-category", "Transport");
+  assert.equal(await text("#filter-count"), "Showing 1 of 3 expenses");
+});
+
+test("R19 (browser): when nothing matches, the count shows 0 above the 'no matches' message", async () => {
+  await addFilterExamples();
+  await page.selectOption("#filter-category", "Health");
+
+  assert.equal(await page.isVisible("#filter-count"), true);
+  assert.equal(await text("#filter-count"), "Showing 0 of 3 expenses");
+  assert.equal(await page.isVisible("#empty-message"), true);
+  assert.equal(await text("#empty-message"), "No expenses match the filters.");
+
+  const count = await page.locator("#filter-count").boundingBox();
+  const message = await page.locator("#empty-message").boundingBox();
+  assert.ok(count.y < message.y, "the count is above the message");
+});
+
+test("R19 (browser): the count is between the filters and the list", async () => {
+  await addFilterExamples();
+  await page.selectOption("#filter-category", "Food");
+
+  const filters = await page.locator(".filters").boundingBox();
+  const count = await page.locator("#filter-count").boundingBox();
+  const table = await page.locator("#expense-table").boundingBox();
+  assert.ok(count.y >= filters.y + filters.height, "the count is below the filters");
+  assert.ok(count.y + count.height <= table.y, "the count is above the list");
+});
+
+test("R19 (browser): the count is hidden after clearing the filters or choosing 'All' again", async () => {
+  const date = await addFilterExamples();
+  await page.selectOption("#filter-category", "Food");
+  await page.selectOption("#filter-month", date.slice(0, 7));
+  await page.click("#clear-filters");
+  assert.equal(await page.isVisible("#filter-count"), false);
+
+  await page.selectOption("#filter-month", date.slice(0, 7));
+  assert.equal(await page.isVisible("#filter-count"), true);
+  await page.selectOption("#filter-month", "");
+  assert.equal(await page.isVisible("#filter-count"), false);
+});
+
+test("R19 (browser): the count updates when expenses are added, edited, or deleted", async () => {
+  const date = await addFilterExamples();
+  await page.selectOption("#filter-category", "Food");
+  assert.equal(await text("#filter-count"), "Showing 2 of 3 expenses");
+
+  await addExpense("Dinner", "25", "Food", date);
+  assert.equal(await text("#filter-count"), "Showing 3 of 4 expenses");
+
+  // An added expense that does not match is still counted in the total.
+  await addExpense("Cinema", "15", "Entertainment", date);
+  assert.equal(await text("#filter-count"), "Showing 3 of 5 expenses");
+
+  await startEditing("Dinner");
+  await page.selectOption("#category", "Shopping");
+  await page.click("#expense-form button[type=submit]");
+  assert.equal(await text("#filter-count"), "Showing 2 of 5 expenses");
+
+  await rowWith("Groceries").locator("button.delete").click();
+  assert.equal(await text("#filter-count"), "Showing 1 of 4 expenses");
+});
+
+test("R19 (browser): with one expense in total, the count says 'expense'", async () => {
+  await addExpense("Groceries", "45.20", "Food", await today());
+  await page.selectOption("#filter-category", "Food");
+  assert.equal(await text("#filter-count"), "Showing 1 of 1 expense");
+});
+
+test("R19 (browser): with no expenses at all, only 'No expenses yet.' is shown", async () => {
+  await page.selectOption("#filter-category", "Food");
+  assert.equal(await page.isVisible("#filter-count"), false);
+  assert.equal(await text("#empty-message"), "No expenses yet.");
+});
+
+test("R19 (browser): filters are not saved, so after a reload no count is shown", async () => {
+  await addFilterExamples();
+  await page.selectOption("#filter-category", "Food");
+  await page.reload();
+  assert.equal(await page.isVisible("#filter-count"), false);
+});
+
+// ---------- R20: Highlight the expense being edited ----------
+
+// The names of the rows that are highlighted as being edited.
+async function highlightedNames() {
+  return page.$$eval("#expense-list tr.editing td:nth-child(2)", (tds) => tds.map((td) => td.textContent));
+}
+
+async function rowBackground(name) {
+  return rowWith(name).evaluate((row) => getComputedStyle(row).backgroundColor);
+}
+
+const HIGHLIGHT = "rgb(227, 242, 253)";
+const NO_BACKGROUND = "rgba(0, 0, 0, 0)";
+
+test("R20 (browser): no row is highlighted before Edit is clicked", async () => {
+  await addFilterExamples();
+  assert.deepEqual(await highlightedNames(), []);
+  assert.equal(await rowBackground("Groceries"), NO_BACKGROUND);
+});
+
+test("R20 (browser): clicking Edit highlights only that expense's row", async () => {
+  await addFilterExamples();
+  await startEditing("Bus pass");
+
+  assert.deepEqual(await highlightedNames(), ["Bus pass"]);
+  assert.equal(await rowBackground("Bus pass"), HIGHLIGHT);
+  assert.equal(await rowBackground("Groceries"), NO_BACKGROUND);
+  assert.equal(await rowBackground("Old lunch"), NO_BACKGROUND);
+  // The row's text and buttons do not change.
+  const cells = await rowWith("Bus pass").locator("td").allTextContents();
+  assert.deepEqual(cells.slice(1, 4), ["Bus pass", "Transport", "$30.00"]);
+  assert.equal(await rowWith("Bus pass").locator("button.edit").textContent(), "Edit");
+});
+
+test("R20 (browser): the highlighted row has a blue bar on its left edge", async () => {
+  await addFilterExamples();
+  await startEditing("Bus pass");
+  const bar = await rowWith("Bus pass").locator("td").first().evaluate((td) => getComputedStyle(td).boxShadow);
+  assert.match(bar, /rgb\(21, 101, 192\).*inset/);
+  const other = await rowWith("Groceries").locator("td").first().evaluate((td) => getComputedStyle(td).boxShadow);
+  assert.equal(other, "none");
+});
+
+test("R20 (browser): clicking Edit on another expense moves the highlight", async () => {
+  await addFilterExamples();
+  await startEditing("Bus pass");
+  await startEditing("Old lunch");
+
+  assert.deepEqual(await highlightedNames(), ["Old lunch"]);
+  assert.equal(await rowBackground("Bus pass"), NO_BACKGROUND);
+});
+
+test("R20 (browser): Cancel removes the highlight", async () => {
+  await addFilterExamples();
+  await startEditing("Bus pass");
+  await page.click("#cancel-edit");
+
+  assert.deepEqual(await highlightedNames(), []);
+  assert.equal(await rowBackground("Bus pass"), NO_BACKGROUND);
+});
+
+test("R20 (browser): saving the changes removes the highlight", async () => {
+  await addFilterExamples();
+  await startEditing("Bus pass");
+  await page.fill("#name", "Train ticket");
+  await page.click("#expense-form button[type=submit]");
+
+  assert.deepEqual(await highlightedNames(), []);
+  assert.equal(await rowBackground("Train ticket"), NO_BACKGROUND);
+});
+
+test("R20 (browser): deleting the expense being edited leaves no row highlighted", async () => {
+  await addFilterExamples();
+  await startEditing("Bus pass");
+  await rowWith("Bus pass").locator("button.delete").click();
+
+  assert.deepEqual(await highlightedNames(), []);
+  assert.deepEqual(await listedNames(), ["Groceries", "Old lunch"]);
+});
+
+test("R20 (browser): deleting another expense keeps the highlight on the one being edited", async () => {
+  await addFilterExamples();
+  await startEditing("Bus pass");
+  await rowWith("Groceries").locator("button.delete").click();
+
+  assert.deepEqual(await highlightedNames(), ["Bus pass"]);
+  assert.equal(await text("#form-title"), "Edit expense");
+});
+
+test("R20 (browser): after an invalid change the row stays highlighted", async () => {
+  await page.$eval("#expense-form", (form) => (form.noValidate = true));
+  await addFilterExamples();
+  await startEditing("Bus pass");
+  await page.fill("#name", "");
+  await page.click("#expense-form button[type=submit]");
+
+  assert.equal(await text("#expense-error"), "Please enter a name.");
+  assert.deepEqual(await highlightedNames(), ["Bus pass"]);
+});
+
+test("R20 (browser): a row hidden by a filter is highlighted again when it is shown", async () => {
+  await addFilterExamples();
+  await startEditing("Bus pass");
+
+  await page.selectOption("#filter-category", "Food");
+  assert.deepEqual(await highlightedNames(), []);
+
+  await page.click("#clear-filters");
+  assert.deepEqual(await highlightedNames(), ["Bus pass"]);
+});
+
+test("R20 (browser): after a reload no row is highlighted", async () => {
+  await addFilterExamples();
+  await startEditing("Bus pass");
+  await page.reload();
+
+  assert.deepEqual(await highlightedNames(), []);
+  assert.equal(await text("#form-title"), "Add an expense");
+});
+
 // ---------- Layout ----------
+
+test("Layout (browser): the filter count fits on a phone-sized screen", async () => {
+  await page.setViewportSize({ width: 375, height: 800 });
+  await addFilterExamples();
+  await page.selectOption("#filter-category", "Food");
+
+  const box = await page.locator("#filter-count").boundingBox();
+  assert.ok(box.x >= 0 && box.x + box.width <= 375, "#filter-count is at x=" + box.x + ", width " + box.width);
+  const pageWidth = await page.evaluate(() => document.documentElement.scrollWidth);
+  assert.ok(pageWidth <= 375, "page is " + pageWidth + "px wide");
+});
+
+test("Layout (browser): on a phone-sized screen the card being edited is highlighted and fits", async () => {
+  await page.setViewportSize({ width: 375, height: 800 });
+  await addFilterExamples();
+  await startEditing("Bus pass");
+
+  const card = rowWith("Bus pass");
+  assert.equal(await card.evaluate((row) => getComputedStyle(row).backgroundColor), HIGHLIGHT);
+  assert.equal(await card.evaluate((row) => getComputedStyle(row).borderLeftColor), "rgb(21, 101, 192)");
+  assert.equal(await rowBackground("Groceries"), NO_BACKGROUND);
+  for (const locator of [card, card.locator("button.edit"), card.locator("button.delete")]) {
+    const box = await locator.boundingBox();
+    assert.ok(box.x >= 0 && box.x + box.width <= 375, "x=" + box.x + ", width " + box.width);
+  }
+  const pageWidth = await page.evaluate(() => document.documentElement.scrollWidth);
+  assert.ok(pageWidth <= 375, "page is " + pageWidth + "px wide");
+});
 
 test("Layout (browser): the category budget form and an over-budget row fit on a phone-sized screen", async () => {
   await page.setViewportSize({ width: 375, height: 800 });

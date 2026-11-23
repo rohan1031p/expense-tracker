@@ -503,3 +503,33 @@ test("R18: spending from other months does not make a category over budget", () 
   const [food] = app.getCategorySummary(expenses, { Food: 100 }, "2026-11");
   assert.equal(food.over, false);
 });
+
+// ---------- R19: Count of shown expenses when a filter is on ----------
+
+test("R19: isFilterOn is false only when both filters are 'All'", () => {
+  assert.equal(app.isFilterOn("", ""), false);
+  assert.equal(app.isFilterOn("Food", ""), true);
+  assert.equal(app.isFilterOn("", "2026-11"), true);
+  assert.equal(app.isFilterOn("Food", "2026-11"), true);
+});
+
+test("R19: formatShownCount says how many are shown out of the total", () => {
+  assert.equal(app.formatShownCount(2, 5), "Showing 2 of 5 expenses");
+  assert.equal(app.formatShownCount(5, 5), "Showing 5 of 5 expenses");
+  assert.equal(app.formatShownCount(1, 5), "Showing 1 of 5 expenses");
+});
+
+test("R19: formatShownCount shows 0 when nothing matches", () => {
+  assert.equal(app.formatShownCount(0, 3), "Showing 0 of 3 expenses");
+});
+
+test("R19: formatShownCount uses 'expense' when the total is 1", () => {
+  assert.equal(app.formatShownCount(1, 1), "Showing 1 of 1 expense");
+  assert.equal(app.formatShownCount(0, 1), "Showing 0 of 1 expense");
+});
+
+test("R19: the count of a filtered list matches filterExpenses", () => {
+  const list = filterList();
+  const shown = app.filterExpenses(list, "Food", "");
+  assert.equal(app.formatShownCount(shown.length, list.length), "Showing 2 of 4 expenses");
+});
