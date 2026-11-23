@@ -209,6 +209,11 @@ td.actions button + button {
   color: #666;
 }
 
+/* R21: The export button below the expense list. */
+.export {
+  margin-top: 12px;
+}
+
 /* R17: The category budget form below the category list. */
 .category-budget-form {
   margin-top: 16px;

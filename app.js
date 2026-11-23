@@ -258,6 +258,21 @@ document.getElementById("clear-filters").addEventListener("click", () => {
   renderExpenseList();
 });
 
+// R21: Download every expense (not only the filtered ones) as a CSV file.
+document.getElementById("export-csv").addEventListener("click", () => {
+  // The mark "﻿" at the start tells spreadsheet programs the file is UTF-8,
+  // so names with letters like "é" are shown correctly.
+  const file = new Blob(["﻿" + expensesToCsv(expenses)], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(file);
+  // A temporary link with a download attribute saves the file instead of opening it.
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "expenses.csv";
+  link.click();
+  // Free the file's memory once the download has started.
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+});
+
 // R1: Add an expense when the form is submitted.
 // R9-R13: While editing, save the changes to that expense instead.
 document.getElementById("expense-form").addEventListener("submit", (event) => {
