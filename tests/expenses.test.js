@@ -383,7 +383,7 @@ test("R5: getCategorySummary counts only spending in the given month", () => {
   ];
   const summary = app.getCategorySummary(expenses, {}, "2026-11");
   assert.deepEqual(summary, [
-    { category: "Food", spent: 15.5, budget: null, over: false, overBy: 0 },
+    { category: "Food", spent: 15.5, budget: null, over: false, overBy: 0, left: null },
   ]);
 });
 
@@ -396,9 +396,9 @@ test("R5: getCategorySummary lists categories with spending or a budget, in the 
   const budgets = { Transport: 40, Food: 100 };
   const summary = app.getCategorySummary(expenses, budgets, "2026-11");
   assert.deepEqual(summary, [
-    { category: "Food", spent: 12, budget: 100, over: false, overBy: 0 },
-    { category: "Transport", spent: 0, budget: 40, over: false, overBy: 0 },
-    { category: "Shopping", spent: 30, budget: null, over: false, overBy: 0 },
+    { category: "Food", spent: 12, budget: 100, over: false, overBy: 0, left: 88 },
+    { category: "Transport", spent: 0, budget: 40, over: false, overBy: 0, left: 40 },
+    { category: "Shopping", spent: 30, budget: null, over: false, overBy: 0, left: null },
   ]);
 });
 
@@ -532,4 +532,107 @@ test("R19: the count of a filtered list matches filterExpenses", () => {
   const list = filterList();
   const shown = app.filterExpenses(list, "Food", "");
   assert.equal(app.formatShownCount(shown.length, list.length), "Showing 2 of 4 expenses");
+});
+
+// ---------- R21: Export expenses to a CSV file ----------
+
+test("R21: expensesToCsv starts with the header row", () => {
+  assert.equal(app.expensesToCsv([]), "Date,Name,Category,Amount\r\n");
+});
+
+test("R21: expensesToCsv writes one line per expense, newest date first, with CRLF line endings", () => {
+  const expenses = [
+    { id: "1", name: "Bus pass", amount: 30, category: "Transport", date: "2026-10-05" },
+    { id: "2", name: "Lunch", amount: 12.5, category: "Food", date: "2026-11-20" },
+    { id: "3", name: "Shoes", amount: 59.99, category: "Shopping", date: "2026-11-01" },
+  ];
+  assert.equal(
+    app.expensesToCsv(expenses),
+    "Date,Name,Category,Amount\r\n" +
+      "2026-11-20,Lunch,Food,12.50\r\n" +
+      "2026-11-01,Shoes,Shopping,59.99\r\n" +
+      "2026-10-05,Bus pass,Transport,30.00\r\n"
+  );
+});
+
+test("R21: expensesToCsv writes amounts as plain numbers with two decimals and no $ sign", () => {
+  const expenses = [sampleExpense("1", 1234.5, "Food", "2026-11-20")];
+  const lines = app.expensesToCsv(expenses).split("\r\n");
+  assert.equal(lines[1], "2026-11-20,Item 1,Food,1234.50");
+});
+
+test("R21: expensesToCsv puts values with commas, quotes or line breaks in double quotes", () => {
+  const expenses = [
+    { id: "1", name: "Bus, return", amount: 3, category: "Transport", date: "2026-11-20" },
+    { id: "2", name: 'The "big" shop', amount: 4, category: "Food", date: "2026-11-19" },
+    { id: "3", name: "Line one\nline two", amount: 5, category: "Other", date: "2026-11-18" },
+    { id: "4", name: 'Bus, "return"', amount: 6, category: "Transport", date: "2026-11-17" },
+  ];
+  assert.equal(
+    app.expensesToCsv(expenses),
+    "Date,Name,Category,Amount\r\n" +
+      '2026-11-20,"Bus, return",Transport,3.00\r\n' +
+      '2026-11-19,"The ""big"" shop",Food,4.00\r\n' +
+      '2026-11-18,"Line one\nline two",Other,5.00\r\n' +
+      '2026-11-17,"Bus, ""return""",Transport,6.00\r\n'
+  );
+});
+
+test("R21: expensesToCsv leaves names that start with = + - or @ unchanged", () => {
+  const expenses = [sampleExpense("1", 1, "Other", "2026-11-20")];
+  expenses[0].name = "=1+2";
+  assert.equal(app.expensesToCsv(expenses).split("\r\n")[1], "2026-11-20,=1+2,Other,1.00");
+});
+
+test("R21: expensesToCsv does not change the list it is given", () => {
+  const expenses = [
+    sampleExpense("1", 1, "Food", "2026-10-01"),
+    sampleExpense("2", 2, "Food", "2026-11-01"),
+  ];
+  const copy = JSON.parse(JSON.stringify(expenses));
+  app.expensesToCsv(expenses);
+  assert.deepEqual(expenses, copy);
+});
+
+// ---------- R22: Budget left in each category this month ----------
+
+test("R22: getCategorySummary gives the budget left this month for a category under its budget", () => {
+  const expenses = [
+    sampleExpense("1", 45.2, "Food", "2026-11-01"),
+    sampleExpense("2", 300, "Food", "2026-10-01"),
+  ];
+  const [food] = app.getCategorySummary(expenses, { Food: 100 }, "2026-11");
+  assert.equal(food.left, 54.8);
+});
+
+test("R22: the whole budget is left when nothing is spent this month", () => {
+  const [health] = app.getCategorySummary([], { Health: 25 }, "2026-11");
+  assert.equal(health.left, 25);
+});
+
+test("R22: spending exactly at the budget leaves 0", () => {
+  const expenses = [sampleExpense("1", 100, "Food", "2026-11-01")];
+  const [food] = app.getCategorySummary(expenses, { Food: 100 }, "2026-11");
+  assert.equal(food.left, 0);
+});
+
+test("R22: a category over its budget, or with no budget, has no 'left' amount (null)", () => {
+  const expenses = [
+    sampleExpense("1", 120, "Food", "2026-11-01"),
+    sampleExpense("2", 30, "Transport", "2026-11-01"),
+  ];
+  const [food, transport] = app.getCategorySummary(expenses, { Food: 100 }, "2026-11");
+  assert.equal(food.over, true);
+  assert.equal(food.left, null);
+  assert.equal(transport.budget, null);
+  assert.equal(transport.left, null);
+});
+
+test("R22: the amount left is rounded to cents", () => {
+  const expenses = [
+    sampleExpense("1", 0.1, "Food", "2026-11-01"),
+    sampleExpense("2", 0.2, "Food", "2026-11-02"),
+  ];
+  const [food] = app.getCategorySummary(expenses, { Food: 1 }, "2026-11");
+  assert.equal(food.left, 0.7);
 });
