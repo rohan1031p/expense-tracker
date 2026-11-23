@@ -34,3 +34,9 @@ Many people have trouble keeping track of how much money they spend each month. 
 - R5 (changed): The app shows spending in each category compared to that category's budget.
 - R17: The user can set a separate monthly budget for each expense category.
 - R18: The user can see when spending in a category goes over its budget.
+
+
+## Round 5 requirements
+
+- R19: When a filter is on, the expense list shows how many expenses are shown out of the total (for example, "Showing 2 of 5 expenses").
+- R20: While an expense is being edited, its row in the list is highlighted so the user can see which one they are changing.
